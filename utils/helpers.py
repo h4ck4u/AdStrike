@@ -5,12 +5,12 @@ AdStrike — Professional UI / UX helpers
 import subprocess, sys, os, json, datetime, threading, time, shutil, shlex
 
 # ── 16-color ANSI ─────────────────────────────────────────────────────────────
-R    = "\033[91m"     # red
+R    = "\033[38;2;253;38;54m"    # AdStrike red
 G    = "\033[92m"     # green
 Y    = "\033[93m"     # yellow
-B    = "\033[94m"     # blue
-M    = "\033[95m"     # magenta
-C    = "\033[96m"     # cyan
+B    = "\033[38;5;45m"            # AdStrike blue
+M    = "\033[38;2;253;38;54m"    # AdStrike red
+C    = "\033[38;5;45m"            # AdStrike blue
 W    = "\033[97m"     # white
 DIM  = "\033[2m"
 BOLD = "\033[1m"
@@ -19,23 +19,28 @@ UND  = "\033[4m"
 BLINK= "\033[5m"
 RST  = "\033[0m"
 
-# ── 256-color palette for gradient effects ────────────────────────────────────
+# ── ANSI palettes for brand effects ───────────────────────────────────────────
 def fg(n):  return f"\033[38;5;{n}m"
 def bg(n):  return f"\033[48;5;{n}m"
+def fg_rgb(r, g, b): return f"\033[38;2;{r};{g};{b}m"
+def bg_rgb(r, g, b): return f"\033[48;2;{r};{g};{b}m"
 
-# Modern bright theme: baby blue, vivid pink, white.
-BABY_BLUE   = fg(45)   # bright baby blue
-SKY_BLUE    = fg(51)   # bright cyan-blue
-LIGHT_PINK  = fg(201)  # vivid hot pink
-SOFT_PINK   = fg(198)  # bright pink
+# AdStrike brand theme: #FD2636 red, legacy terminal blue, white.
+ADSTRIKE_RED  = fg_rgb(253, 38, 54)
+ADSTRIKE_BLUE = fg(45)
+
+BABY_BLUE   = ADSTRIKE_BLUE
+SKY_BLUE    = ADSTRIKE_BLUE
+LIGHT_PINK  = ADSTRIKE_RED
+SOFT_PINK   = ADSTRIKE_RED
 PURE_WHITE  = fg(255)
 SOFT_WHITE  = fg(252)
-MIST        = fg(45)
+MIST        = ADSTRIKE_BLUE
 SLATE       = fg(245)
 STEEL       = fg(250)
 SILVER      = fg(255)
 
-NEON_RED    = fg(201)
+NEON_RED    = ADSTRIKE_RED
 NEON_ORG    = LIGHT_PINK
 NEON_YEL    = fg(230)
 NEON_GRN    = BABY_BLUE
