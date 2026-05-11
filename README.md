@@ -77,7 +77,7 @@ The platform includes two analysis layers:
 
 Place repository screenshots in `assets/screenshots/`.
 
-| Main Menu | Bloodhound Helper |
+| Active Directory Enumeration | Bloodhound Helper |
 |---|---|
 | ![AdStrike main menu](assets/screenshots/3.png) | ![AdStrike bloodhound helper](assets/screenshots/4.png) |
 
