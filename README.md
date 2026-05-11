@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/badge/License-GPLv3-yellow?style=flat-square)](LICENSE)
 [![Creator](https://img.shields.io/badge/Creator-tmrswrr-cyan?style=flat-square)](https://github.com/capture0x)
 
-> **Authorised penetration testing, red team engagements, and security research only.**
+> **Authorized penetration testing, red team engagements, and security research only.**
 > 
 > **Release status:** beta/research build. Menu and import health checks pass, but individual modules still depend on target lab state, credentials, network reachability, and installed third-party tools.
 
@@ -63,6 +63,7 @@ The platform includes two analysis layers:
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Automatic Target Discovery](#automatic-target-discovery)
 - [Usage](#usage)
 - [Full Usage Workflows](#full-usage-workflows)
 - [AdStrike Agent Setup](#adstrike-agent-setup)
@@ -279,7 +280,7 @@ Most modules follow the same pattern:
 | ACL/RBCD/Shadow Creds | Target account/computer, controlled principal | Delegation paths, PKINIT material, service tickets | Depends on object permissions |
 | Lateral movement | Target host, credential material, shell method | WinRM/SMB/WMI command execution | Requires local admin or equivalent rights |
 | Credential access | Admin rights, target host/DC, dumping method | Hashes, DPAPI material, LSASS/NTDS data | High impact; run only in scope |
-| Persistence | Confirmed admin path, target object/GPO/service | Persistence commands and evidence | Use only when explicitly authorised |
+| Persistence | Confirmed admin path, target object/GPO/service | Persistence commands and evidence | Use only when explicitly authorized |
 | Reporting | Existing session findings and command history | HTML, Markdown, JSON report files | Review/redact before sharing |
 
 ### Output and Evidence
@@ -361,9 +362,46 @@ ATTACKER_IFACE=tun0
 ENGAGEMENT_NAME=Corp-Internal-2026
 ```
 
+Packaged releases include `.env.example`. If your archive does not, create `.env` manually with the template above before running `bash run.sh`.
+
 All fields can also be entered interactively at startup — the session carries them across every module automatically.
 
 Do not commit real engagement configuration or output. Keep `.env`, `output/`, ticket files, hashes, dumps, reports, and captured loot out of Git.
+
+### Optional Environment Flags
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `ADSTRIKE_SHOW_SECRETS` | `false` | Mask passwords, hashes, and loot in logs/reports unless explicitly enabled |
+| `ADSTRIKE_NO_ANIMATION` | unset | Disable the startup banner animation for cleaner logs or slow terminals |
+| `ADSTRIKE_PORT_CHECK` | unset | Set to `true` to force the quick nmap AD port check during session setup |
+| `TGT_AUTO_RENEW` | `true` | Keep Kerberos renewal behavior enabled where supported |
+| `ADSTRIKE_OPSEC` | `normal` | Agent OPSEC mode override: `loud`, `normal`, or `stealth` |
+| `ADSTRIKE_LDAP_PORT` | `389` | Agent LDAP port override |
+| `ADSTRIKE_LDAPS_PORT` | `636` | Agent LDAPS port override |
+| `ADSTRIKE_SMB_PORT` | `445` | Agent SMB port override |
+| `ADSTRIKE_WINRM_PORT` | `5985` | Agent WinRM port override |
+| `ADSTRIKE_BH_HOST` | unset | BloodHound/Agent host override when DNS needs manual correction |
+| `ADSTRIKE_BH_DOMAIN` | unset | BloodHound/Agent domain override |
+| `ADSTRIKE_BH_IP` | unset | BloodHound/Agent DC IP override |
+
+---
+
+## Automatic Target Discovery
+
+During first-run session setup, entering a DC IP triggers a fast target discovery pass:
+
+1. LDAP rootDSE query to derive `DOMAIN`, `BASE_DN`, and `DC_FQDN` when anonymous rootDSE is available.
+2. `nxc smb <dc-ip>` fallback when LDAP does not reveal the domain.
+3. Optional quick nmap check of common AD ports.
+
+If LDAP or NetExec already finds the domain, the nmap port check is skipped by default to keep startup fast. To force it:
+
+```bash
+ADSTRIKE_PORT_CHECK=true bash run.sh
+```
+
+When the quick port check runs, output is saved to `output/nmap_recon.txt`. If clock skew is detected, AdStrike prints a time-sync hint before Kerberos-heavy workflows. If a DC FQDN is discovered, it also prints an `/etc/hosts` line you can add when DNS resolution is unreliable.
 
 ---
 
@@ -410,6 +448,7 @@ python3 main.py --module 56 --no-banner
 | `ATTACKER_IP` | Your VPN/tun/wlan IP used for callbacks, relay, or hosting |
 | `ATTACKER_IFACE` | Interface such as `tun0`, `eth0`, or `wlan0` |
 | `ADSTRIKE_SHOW_SECRETS` | Defaults to `false`; masks secrets in logs/reports |
+| `TGT_AUTO_RENEW` | Defaults to `true`; enables Kerberos ticket renewal where supported |
 
 ### Health Check / Automation
 
@@ -558,8 +597,32 @@ AdStrike Agent is optional. Manual modules do not require AI.
 
 ### Ollama Setup
 
+Install Ollama on Linux:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+Official Linux installation reference: <https://docs.ollama.com/linux>
+
+Start and verify the service:
+
 ```bash
 ollama serve
+# in another terminal
+ollama -v
+```
+
+If your system installed Ollama as a systemd service, use:
+
+```bash
+sudo systemctl enable --now ollama
+sudo systemctl status ollama
+```
+
+Then pull a local model:
+
+```bash
 ollama pull mistral
 # or
 ollama pull qwen2.5-coder:7b
@@ -925,9 +988,9 @@ run_cmd(f"{imp('GetUserSPNs.py')} {dom}/{user}:'{pw}' -dc-ip {dc} -request")
 
 ## Legal Disclaimer
 
-This software is provided for **authorised security testing, red team engagements, and educational purposes only**.
+This software is provided for **authorized security testing, red team engagements, and educational purposes only**.
 
-Use of this tool against systems without explicit written authorisation from the system owner is **illegal** and may violate the Computer Fraud and Abuse Act (CFAA), the Computer Misuse Act (CMA), and equivalent legislation in your jurisdiction.
+Use of this tool against systems without explicit written authorization from the system owner is **illegal** and may violate the Computer Fraud and Abuse Act (CFAA), the Computer Misuse Act (CMA), and equivalent legislation in your jurisdiction.
 
 The author (**tmrswrr**) accepts no liability for any damage, data loss, or legal consequences arising from misuse of this software.
 
@@ -937,14 +1000,14 @@ The author (**tmrswrr**) accepts no liability for any damage, data loss, or lega
 
 **tmrswrr** &mdash; GitHub: [capture0x](https://github.com/capture0x)
 
-Built for the offensive security community. If this saved you time on an engagement, give it a ⭐.
+Maintained for authorized offensive security research, lab validation, and professional red team operations.
 
 ---
 
 <div align="center">
 
 ```
-  For authorized use only  ·  Use responsibly  ·  Happy hacking
+  For authorized use only  ·  Validate scope  ·  Document evidence
 ```
 
 </div>
