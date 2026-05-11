@@ -79,11 +79,11 @@ Place repository screenshots in `assets/screenshots/`.
 
 | Main Menu | Tool Checker |
 |---|---|
-| ![AdStrike main menu](assets/screenshots/adstrike-main-menu.png) | ![AdStrike tool checker](assets/screenshots/adstrike-tool-checker.png) |
+| ![AdStrike main menu](assets/screenshots/3.png) | ![AdStrike tool checker](assets/screenshots/4.png) |
 
 | AdStrike Agent | Report Output |
 |---|---|
-| ![AdStrike Agent](assets/screenshots/adstrike-agent.png) | ![AdStrike report output](assets/screenshots/adstrike-report.png) |
+| ![AdStrike Agent](assets/screenshots/5.png) | ![AdStrike report output](assets/screenshots/7.png) |
 
 ---
 
