@@ -161,7 +161,8 @@ Recommended first-run flow:
 Direct module execution:
 
 ```bash
-source adrt_venv/bin/activate
+python -m venv venv     
+source venv/bin/activate
 python3 main.py --module 10
 python3 main.py --module 56 --no-banner
 python3 main.py --session output/session.json --no-banner
