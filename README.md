@@ -77,11 +77,11 @@ The platform includes two analysis layers:
 
 Place repository screenshots in `assets/screenshots/`.
 
-| Main Menu | Tool Checker |
+| Main Menu | Bloodhound Helper |
 |---|---|
 | ![AdStrike main menu](assets/screenshots/3.png) | ![AdStrike bloodhound helper](assets/screenshots/4.png) |
 
-| AdStrike Agent | Report Output |
+| AdStrike Agent | Smart Analyst |
 |---|---|
 | ![AdStrike Agent AD Attack](assets/screenshots/5.png) | ![AdStrike smart analyst](assets/screenshots/7.png) |
 
