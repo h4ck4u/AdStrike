@@ -12,7 +12,10 @@ SEV_COLORS = {"Critical":"#ff1493","High":"#ff4fb3","Medium":"#ff9bd1",
 
 def run():
     print_banner("REPORT GENERATOR", "HTML / Markdown / JSON")
-    engagement = SESSION.get("engagement") or prompt("Engagement name")
+    try:
+        engagement = SESSION.get("engagement") or prompt("Engagement name") or "AdStrike"
+    except EOFError:
+        engagement = SESSION.get("engagement") or "AdStrike"
     tester     = SESSION.get("username","tmrswrr")
     dom        = SESSION.get("domain","Unknown")
     dc         = SESSION.get("dc_ip","Unknown")
@@ -26,7 +29,10 @@ def run():
     if not findings:
         warn("No auto-tracked findings. Add manually?")
         while True:
-            name = prompt("Finding name (blank to finish)")
+            try:
+                name = prompt("Finding name (blank to finish)")
+            except EOFError:
+                break
             if not name: break
             sev  = prompt("Severity [Critical/High/Medium/Low/Info]")
             desc = prompt("Description")
@@ -149,3 +155,4 @@ footer{{text-align:center;color:#3f6c80;padding:20px;font-size:.8em}}
     success(f"Markdown → {out}.md")
     success(f"JSON   → {out}.json")
     pause()
+    return {"html": f"{out}.html", "markdown": f"{out}.md", "json": f"{out}.json"}
