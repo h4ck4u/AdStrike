@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║  AdStrike — Professional Active Directory Attack Framework          ║
+║  AdStrike — Professional Active Directory Attack Framework           ║
 ║  AUTHORISED PENETRATION TESTING & RED TEAM ENGAGEMENTS ONLY          ║
+║                                               By TMRSWRR             ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 import sys, os, json, datetime, importlib, platform, argparse, time, shutil
