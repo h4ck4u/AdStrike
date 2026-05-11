@@ -493,7 +493,7 @@ AdStrike Agent is optional. Manual modules do not require AI.
 
 | Backend | Use Case | Requirements |
 |---|---|---|
-| Ollama | Local/private/offline lab usage | `ollama serve`, a local model, Python `openai` package |
+| Ollama | Local/private/offline lab usage | `ollama serve`, a local model, Python `requests` package |
 | Claude | Higher reasoning quality through Anthropic API | `ANTHROPIC_API_KEY`, internet/API access |
 
 ### Ollama Setup
@@ -728,7 +728,7 @@ echo "$ANTHROPIC_API_KEY"
 Also confirm:
 
 ```bash
-python3 -c "import openai, anthropic; print('ok')"
+python3 -c "import requests, anthropic; print('ok')"
 ```
 
 ### Reports Include Secrets
