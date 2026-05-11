@@ -1,16 +1,14 @@
 <div align="center">
 
-```
-     ___       __   _____ __       _ __       
+<pre align="center"><code>     ___       __   _____ __       _ __       
     /   | ____/ /  / ___// /______(_) /_____ 
    / /| |/ __  /   \__ \/ __/ ___/ / //_/ _ \
   / ___ / /_/ /   ___/ / /_/ /  / / ,< /  __/
  /_/  |_\__,_/   /____/\__/_/  /_/_/|_|\___/ 
-```
+</code></pre>
 
-# AdStrike &mdash; `v5.0 «AdStrike»`
-
-**Professional Active Directory Attack Framework**
+<h1>AdStrike &mdash; <code>v5.0 «AdStrike»</code></h1>
+<p><strong>Professional Active Directory Attack Framework</strong></p>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![Platform](https://img.shields.io/badge/Platform-Kali%20%7C%20Parrot-brightgreen?style=flat-square&logo=linux)](https://www.kali.org)
