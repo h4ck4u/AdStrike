@@ -65,18 +65,14 @@ The platform includes two analysis layers:
 - [Configuration](#configuration)
 - [Automatic Target Discovery](#automatic-target-discovery)
 - [Usage](#usage)
-- [Full Usage Workflows](#full-usage-workflows)
 - [AdStrike Agent Setup](#adstrike-agent-setup)
 - [Tool Checker and Missing Tools](#tool-checker-and-missing-tools)
 - [NTLM-Disabled Environments](#ntlm-disabled-environments)
 - [Troubleshooting](#troubleshooting)
-- [GitHub Release Checklist](#github-release-checklist)
 
 ---
 
 ## Screenshots
-
-Place repository screenshots in `assets/screenshots/`.
 
 | Active Directory Enumeration | Bloodhound Helper |
 |---|---|
@@ -452,7 +448,7 @@ python3 main.py --module 56 --no-banner
 
 ### Health Check / Automation
 
-Before publishing, pushing, or adding a new module, run:
+To validate the local installation or module registry, run:
 
 ```bash
 python3 -m py_compile main.py
@@ -467,8 +463,6 @@ python3 main.py --module 10
 python3 main.py --session output/session.json --no-banner
 bash run.sh --check
 ```
-
-The GitHub Actions workflow runs the syntax check and registry/module health check on every push and pull request.
 
 ### Repair Missing Tools
 
@@ -488,99 +482,6 @@ bash scripts/repair_tools.sh --no-github
 ```
 
 The repair script installs missing apt/pip tools where possible, clones helper tools such as `krbrelayx`/`dnstool.py` into the ignored `tools/` directory, and reruns AdStrike's health check.
-
----
-
-## Full Usage Workflows
-
-### 1. Assumed Breach Enumeration
-
-Use when you have a valid low-privileged AD credential.
-
-```text
-1. [55] Session Manager
-   Set DC IP, domain, username, password or NT hash, attacker IP.
-
-2. [56] Tool Checker
-   Confirm required binaries are present.
-
-3. [10] AD Enumeration
-   Run LDAP, SMB, SPN, delegation, trust, GPO, and LAPS checks.
-
-4. [12] BloodHound Helper
-   Collect or import BloodHound data.
-
-5. [52] Smart Analyst
-   Parse collected output and identify high-value paths.
-
-6. [54] Generate Report
-   Export current findings and command evidence.
-```
-
-### 2. No-Credential / External Start
-
-Use when you only have network access to the target environment.
-
-```text
-1. [2] Network Discovery
-   Identify DCs, live hosts, SMB/LDAP/Kerberos exposure.
-
-2. [1] Recon & OSINT
-   Gather DNS, naming, users, and public intelligence.
-
-3. [3] Initial Access (No Creds)
-   Try RID cycling, null LDAP/SMB checks, capture/relay setup.
-
-4. [18] Kerberos Attacks
-   Run kerbrute user enumeration and AS-REP roast checks.
-
-5. [31] Password Attacks
-   Spray only when explicitly allowed and lockout policy is known.
-```
-
-### 3. Kerberoast to Lateral Movement
-
-```text
-1. [10] AD Enumeration
-   Find SPNs and service accounts.
-
-2. [18] Kerberos Attacks
-   Request Kerberoast hashes.
-
-3. Crack offline with hashcat/john.
-
-4. [14] NetExec / NXC Suite
-   Validate cracked credentials across SMB/LDAP/WinRM.
-
-5. [28] Lateral Movement
-   Use WinRM, WMI, PSExec, or DCOM only where access is confirmed.
-```
-
-### 4. ADCS Abuse
-
-```text
-1. [23] Certificate Abuse (ADCS)
-   Run Certipy find and identify ESC paths.
-
-2. [25] Golden Certificate or [26] UnPAC / PassTheCert
-   Use certificate paths only when prerequisites are met.
-
-3. [53] Kerberos Manager
-   Import/use resulting ticket or ccache.
-
-4. [14] NetExec / NXC Suite
-   Validate access using Kerberos.
-```
-
-### 5. Evidence and Reporting
-
-```text
-1. Run enumeration/exploitation modules.
-2. Review `output/` artifacts.
-3. Use [49] Loot Parser & Analyzer to deduplicate credentials and evidence.
-4. Use [54] Generate Report.
-5. Review generated reports before sharing.
-```
 
 ---
 
@@ -707,27 +608,6 @@ Some tools are optional and only affect specific modules:
 | `sliver-server`, `havoc` | C2 integration |
 
 External tools are intentionally not all vendored into this repository. Licensing, platform, package availability, and operator preference vary by environment.
-
-### Quick Start — Assumed Breach
-
-```
-1.  bash run.sh
-2.  [55] Session Manager       → configure DC IP, domain, username, password
-3.  [10] AD Enumeration        → [A] Full Auto Enum
-4.  [52] Smart Analyst         → reviews output, builds prioritised attack plan
-5.  Follow the recommended exploit chain
-```
-
-### Quick Start — No Credentials (Unauthenticated)
-
-```
-1.  [3]  Initial Access        → NTLM capture (Responder) or RID cycling
-2.  [2]  Network Discovery     → identify DCs, hosts, services
-3.  [1]  Recon & OSINT         → DNS, crt.sh, user enumeration
-4.  [18] Kerberos Attacks      → kerbrute user enum → AS-REP Roasting
-```
-
----
 
 ## NTLM-Disabled Environments
 
@@ -860,129 +740,6 @@ Set:
 ```env
 ADSTRIKE_SHOW_SECRETS=false
 ```
-
----
-
-## GitHub Release Checklist
-
-Before pushing a public release:
-
-```bash
-python3 -m compileall -q main.py config modules utils tools/bin
-python3 main.py --check --no-banner
-python3 main.py --module 56 --no-banner
-```
-
-Confirm these are not staged:
-
-```text
-.env
-output/
-adrt_venv/
-__pycache__/
-*.ccache
-*.kirbi
-*.pfx
-*.pem
-*.key
-```
-
-Recommended Git flow:
-
-```bash
-git init
-git add .
-git status
-git commit -m "Initial AdStrike release"
-git branch -M main
-git remote add origin https://github.com/capture0x/AdStrike.git
-git push -u origin main
-```
-
-Expected validation before release:
-
-| Check | Expected |
-|---|---|
-| Syntax compile | No Python syntax errors |
-| Registry health | `Module health OK: 54/54` |
-| Smoke test | All module `run()` entrypoints open safely |
-| Tool Checker | Core tools ready; optional missing tools documented |
-| Secrets | `.env`, tickets, hashes, reports, and output not committed |
-
----
-
-## Project Structure
-
-```
-AdStrike/
-├── main.py                  # Entry point, interactive menu, module dispatch
-├── run.sh                   # Launcher — activates venv, writes session log
-├── install.sh               # Full system + Python dependency installer
-├── requirements.txt         # Python package dependencies
-├── .env.example             # Configuration template
-│
-├── config/
-│   └── settings.py          # Session state, Kerberos helpers (TGT/PTT/S4U),
-│                            # auth mode selection, derived fields
-│
-├── utils/
-│   └── helpers.py           # UI helpers, run_cmd(), imp(), spinner,
-│                            # add_finding(), save_result(), print_table()
-│
-├── modules/                 # Attack modules and executable utilities
-│   ├── enum_ad.py           # LDAP/SMB/GPO/DNS/SPN enumeration
-│   ├── kerberos_attacks.py  # Full Kerberos attack suite
-│   ├── kerberos_manager.py  # TGT/PTT/S4U/ccache management
-│   ├── credential_dump.py   # LSASS/SAM/NTDS/DPAPI
-│   ├── cert_abuse.py        # ADCS ESC1–ESC13
-│   ├── rbcd_attacks.py      # Full RBCD chain + Bronze Bit
-│   ├── lateral_movement.py  # PSExec/WMI/DCOM/WinRM
-│   ├── red_team_agent.py    # AI autonomous orchestrator
-│   ├── analyst.py           # Smart Analyst (AI-assisted)
-│   └── ...                  # 38 more modules
-│
-└── output/                  # All tool output, findings, reports
-    ├── enum/                # LDAP/SMB/BloodHound results
-    ├── loot/                # Captured hashes, tickets, creds
-    └── reports/             # Generated pentest reports
-```
-
-`output/` is generated at runtime and is intentionally ignored by Git.
-
----
-
-## How `imp()` Works
-
-All impacket tool calls use a global helper defined in `utils/helpers.py`:
-
-```python
-def imp(script: str) -> str:
-    return f"/usr/bin/python3 /usr/share/doc/python3-impacket/examples/{script}"
-```
-
-This bypasses the project's Python virtual environment (which may lack `pyasn1`/`impacket`) and calls the system-installed impacket scripts directly. Usage across all modules:
-
-```python
-run_cmd(f"{imp('secretsdump.py')} {dom}/{user}:'{pw}'@{dc} -just-dc-ntlm")
-run_cmd(f"{imp('GetUserSPNs.py')} {dom}/{user}:'{pw}' -dc-ip {dc} -request")
-```
-
----
-
-## Changelog
-
-### v5.0 «AdStrike» — 2026.05
-
-- **New:** Kerberos-only attack workflow for NTLM-disabled DCs (`[A]` in Kerberos Attacks)
-- **New:** Bronze Bit (CVE-2020-17049), KrbRelayUp, kerbrute user enum, AS-REQ password spray, PKINIT/cert-based TGT
-- **New:** AdStrike Agent — autonomous AI attack orchestrator
-- **New:** Entra Hybrid Attacks, gMSA Attacks, and RODC Attacks modules
-- **New:** DPAPI bulk decryption (dploot), Shadow Copies extraction, SCCM/MECM abuse
-- **Fix:** All impacket calls use `/usr/bin/python3` directly via `imp()` — resolves `ModuleNotFoundError: pyasn1/impacket` in venv environments
-- **Fix:** LDAP enumeration switched to `ldaps://dc:636` — resolves `Strong(er) authentication required` on signing-enforced DCs
-- **Fix:** nxc SMB commands use `-k --kdcHost` — resolves `STATUS_NOT_SUPPORTED` on NTLM-disabled DCs
-- **Fix:** `nxc --sessions` renamed to `--smb-sessions` for NetExec compatibility
-- **Refactor:** Global `imp()` helper in `utils/helpers.py` — consistent impacket resolution across modules
 
 ---
 
