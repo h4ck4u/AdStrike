@@ -10,7 +10,7 @@ DIM='\033[2m'; BOLD='\033[1m'; RST='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-VENV_DIR="$ROOT_DIR/adrt_venv"
+VENV_DIR="${ADSTRIKE_VENV_DIR:-$ROOT_DIR/venv}"
 TOOLS_DIR="$ROOT_DIR/tools"
 BIN_DIR="$TOOLS_DIR/bin"
 REQ_FILE="$ROOT_DIR/requirements.txt"
