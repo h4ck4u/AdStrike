@@ -6,6 +6,7 @@
 ║                                               By TMRSWRR             ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
+
 import sys, os, json, datetime, importlib, platform, argparse, time, shutil
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -25,7 +26,7 @@ AUTHOR   = "tmrswrr"
 BUILD    = "2026.04"
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  BANNER  —  bright baby blue × vivid pink professional aesthetic
+#  BANNER  —  AdStrike red × blue professional aesthetic
 # ══════════════════════════════════════════════════════════════════════════════
 _ART = r"""
      ___       __   _____ __       _ __       
@@ -35,9 +36,9 @@ _ART = r"""
  /_/  |_\__,_/   /____/\__/_/  /_/_/|_|\___/ 
 """
 
-# ── Colour palette — bright baby blue / vivid pink / white ───────────────────
-_C1    = BABY_BLUE    # bright baby blue primary accent / phase labels
-_C2    = LIGHT_PINK   # vivid pink secondary / keys
+# ── Colour palette — AdStrike red / blue / white ─────────────────────────────
+_C1    = BABY_BLUE    # legacy blue primary accent / phase labels
+_C2    = LIGHT_PINK   # #FD2636 red secondary / keys
 _C3    = fg(245)      # separators / frames
 _CDIM  = fg(252)      # readable hints
 _BLINK = ""        # no blink
@@ -410,10 +411,10 @@ def _parse_nmap(output: str) -> dict:
             return False
 
     for line in output.splitlines():
-        # Domain: garfield.htb
+        # Domain: corp.local
         m = re.search(r"Domain:\s*([\w\.-]+)", line)
         if m and not result.get("domain"):
-            dom = m.group(1).rstrip("0")  # nmap bazen "garfield.htb0" yazar
+            dom = m.group(1).rstrip("0")  # nmap sometimes appends a stray trailing 0
             result["domain"] = dom
             result["base_dn"] = "DC=" + dom.replace(".", ",DC=")
 
