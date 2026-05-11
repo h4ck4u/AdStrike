@@ -25,7 +25,7 @@
 > **Release status:** beta/research build. Menu and import health checks pass, but individual modules still depend on target lab state, credentials, network reachability, and installed third-party tools.
 
 <p align="center">
-  <img src="assets/screenshots/adstrike-main-menu.png" alt="AdStrike main menu" width="900">
+  <img src="/assets/screenshots/1.png" alt="AdStrike main menu" width="900">
 </p>
 
 </div>
