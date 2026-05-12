@@ -184,7 +184,7 @@ def progress_bar(current, total, width=40, label=""):
         sys.stdout.write("\n")
 
 # ── Command execution ─────────────────────────────────────────────────────────
-def run_cmd(cmd, capture=False, silent=False, log=True, timeout=120):
+def run_cmd(cmd, capture=False, silent=False, log=True, timeout=120, return_code=False):
     if not silent:
         print(f"\n  {DIM}┌─[ {NEON_ORG}CMD{RST}{DIM} ]─────────────────────────────────────────{RST}")
         # wrap long commands for readability
@@ -211,17 +211,17 @@ def run_cmd(cmd, capture=False, silent=False, log=True, timeout=120):
             res = subprocess.run(cmd, shell=True, capture_output=True,
                                  text=True, timeout=timeout)
             return res.stdout + res.stderr
-        subprocess.run(cmd, shell=True, stdin=tty)
-        return ""
+        res = subprocess.run(cmd, shell=True, stdin=tty)
+        return res.returncode if return_code else ""
     except subprocess.TimeoutExpired:
         error(f"Timeout after {timeout}s: {cmd}")
-        return ""
+        return 124 if return_code else ""
     except KeyboardInterrupt:
         warn("Interrupted")
-        return ""
+        return 130 if return_code else ""
     except Exception as e:
         error(str(e))
-        return ""
+        return 1 if return_code else ""
 
 _SYSPY   = "/usr/bin/python3"
 _IMP_DIR = "/usr/share/doc/python3-impacket/examples"
