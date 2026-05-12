@@ -70,6 +70,20 @@ def _bloodhound_collection_action() -> str:
     return _manual_action("Set a password, NT hash, or Kerberos ticket before running BloodHound")
 
 
+def _has_bloodhound_auth() -> bool:
+    user = str(SESSION.get("username", "") or "").strip()
+    pw = str(SESSION.get("password", "") or "").strip()
+    nt_hash = str(SESSION.get("nt_hash", "") or "").strip()
+    ccache = str(SESSION.get("krb5_ccache", "") or "").strip()
+    if not user:
+        return False
+    if pw and pw != "***":
+        return True
+    if nt_hash and nt_hash != "***":
+        return True
+    return bool(SESSION.get("use_kerberos") and ccache and ccache != "***")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  PARSERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -663,13 +677,21 @@ def build_attack_plan(users, groups, computers, hashes, certipy_vulns,
     # ── BloodHound not yet collected ──────────────────────────────────────────
     bh_files = (list(Path(SESSION.get("output_dir") or str(OUTPUT_DIR)).rglob("*.zip"))
                 + list(Path("/tmp/agent_bloodhound").glob("*.zip") if Path("/tmp/agent_bloodhound").exists() else []))
-    if not bh_files:
+    if not bh_files and _has_bloodhound_auth():
         plan.append({
             "severity": "INFO",
             "title":    "BloodHound data not collected yet",
             "detail":   "Critical for visualising all attack paths to Domain Admin",
             "module":   "51",
             "action":   _manual_action("Run the AI Agent [51] - it collects BloodHound automatically"),
+        })
+    elif not bh_files:
+        plan.append({
+            "severity": "INFO",
+            "title":    "No-credential recon mode",
+            "detail":   "BloodHound collection requires credentials; continue with null-session, Kerbrute, AS-REP, Timeroast, and Pre2K checks",
+            "module":   "51",
+            "action":   _manual_action("Run AI Agent [51] with username and password empty for no-credential recon"),
         })
 
     # ── Agent findings (from last scan report) ────────────────────────────────
