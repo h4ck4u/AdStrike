@@ -888,30 +888,9 @@ def run():
     has_structured = _has_structured_data(users, groups, computers, hashes, certipy_v)
     has_data = has_structured or agent_findings
 
-    # If still no data, auto-run Full Enum
     if not has_data:
-        _run_full_enum_auto()
-        stop2 = spinner("Re-analysing after enumeration...")
-        ldap_users     = parse_ldap_users()
-        bh_users       = parse_bh_users()
-        bh_sams        = {u["samaccountname"].lower() for u in bh_users}
-        extra_ldap     = [u for u in ldap_users if u.get("samaccountname","").lower() not in bh_sams]
-        users          = bh_users + extra_ldap
-        bh_groups      = parse_bh_groups()
-        groups         = bh_groups + [g for g in parse_ldap_groups()
-                                       if g.get("cn","").lower() not in {x["cn"].lower() for x in bh_groups}]
-        bh_computers   = parse_bh_computers()
-        computers      = bh_computers + [c for c in parse_ldap_computers()
-                                          if c.get("cn","").lower() not in {x["cn"].lower() for x in bh_computers}]
-        hashes         = parse_hashes()
-        certipy_v      = parse_certipy()
-        agent_findings = parse_agent_findings()
-        stop2()
-        has_structured = _has_structured_data(users, groups, computers, hashes, certipy_v)
-        has_data       = has_structured or agent_findings
-
-    if not has_data:
-        warn("No data collected — check DC/credentials and try again.")
+        warn("No current analysis data found.")
+        info("Run Enumeration [10] or Agent [51] first. Smart Analyst will not auto-run enum to avoid loops.")
         pause()
         return
 
