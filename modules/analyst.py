@@ -35,6 +35,41 @@ def _sev(level, text):
     return f"{_SEV.get(level, '')}{text}{RST}"
 
 
+def _manual_action(text: str) -> str:
+    """Mark an attack-plan action as operator guidance, not a shell command."""
+    return "# " + str(text).strip().lstrip("#").strip()
+
+
+def _bloodhound_collection_action() -> str:
+    """Build a BloodHound command only when a valid auth mode is configured."""
+    dc_ip   = SESSION.get("dc_ip", "")
+    dc_fqdn = SESSION.get("dc_fqdn") or dc_ip
+    domain  = SESSION.get("domain", "")
+    user    = SESSION.get("username", "")
+    pw      = SESSION.get("password", "")
+    nt_hash = SESSION.get("nt_hash", "")
+
+    if not domain or not dc_fqdn:
+        return _manual_action("Set domain and DC values first, then run BloodHound collection")
+    if not user:
+        return _manual_action("Set a username or run the AI Agent [51] to collect BloodHound safely")
+
+    base = (f"bloodhound-python -d {shell_quote(domain)} -u {shell_quote(user)} "
+            f"-dc {shell_quote(dc_fqdn)}")
+    if dc_ip:
+        base += f" -ns {shell_quote(dc_ip)}"
+    base += " --disable-autogc"
+
+    if SESSION.get("use_kerberos"):
+        return f"{base} -k -c All --zip"
+    if nt_hash:
+        return f"{base} --hashes {shell_quote(':' + nt_hash.split(':')[-1])} -c All --zip"
+    if pw:
+        return f"{base} -p {shell_quote(pw)} -c All --zip"
+
+    return _manual_action("Set a password, NT hash, or Kerberos ticket before running BloodHound")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  PARSERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -46,6 +81,114 @@ def _read(rel_path: str) -> str:
 
 
 # ── BloodHound JSON readers ───────────────────────────────────────────────────
+
+def _current_domain() -> str:
+    return str(SESSION.get("domain", "") or "").strip().lower()
+
+
+def _bh_props_match_current_domain(props: dict) -> bool:
+    """Ignore stale BloodHound data from a previous target/domain."""
+    current = _current_domain()
+    if not current:
+        return True
+    node_domain = str(props.get("domain", "") or "").strip().lower()
+    name = str(props.get("name", "") or "").strip().lower()
+    dn = str(props.get("distinguishedname", "") or "").strip().lower()
+    base_dn = "dc=" + current.replace(".", ",dc=")
+
+    return (
+        node_domain == current
+        or name.endswith(f"@{current}")
+        or dn.endswith(base_dn)
+    )
+
+
+def _dedupe_by(items: list[dict], key: str) -> list[dict]:
+    seen, unique = set(), []
+    for item in items:
+        value = str(item.get(key, "") or "").strip().lower()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        unique.append(item)
+    return unique
+
+
+def _has_ldap_data(raw: str) -> bool:
+    non_error_lines = [l for l in raw.splitlines()
+                       if l.strip() and not any(e in l for e in (
+                           "SASL", "GSSAPI", "ldap_sasl", "ldap3 error",
+                           "Kerberos", "additional info", "Local error",
+                           "Can't contact LDAP server"))]
+    return bool(non_error_lines)
+
+
+def _is_analyst_generated_finding(title: str) -> bool:
+    """Do not feed Smart Analyst's own plan rows back as agent findings."""
+    low = str(title or "").strip().lower()
+    prefixes = (
+        "as-rep roastable users",
+        "kerberoastable service accounts",
+        "kerberoast hashes found",
+        "as-rep hashes found",
+        "domain admins has",
+        "bloodhound data not collected",
+        "legacy os detected",
+        "adcs esc",
+        "password in description field",
+        "unconstrained delegation on non-dc",
+    )
+    return any(low.startswith(p) for p in prefixes)
+
+
+def _finding_matches_current_target(title: str, detail: str = "") -> bool:
+    """Drop obvious findings from a previous target while keeping generic current ones."""
+    text = f"{title} {detail}".lower()
+    current_domain = _current_domain()
+    current_ip = str(SESSION.get("dc_ip", "") or "").strip().lower()
+    current_host = str(SESSION.get("hostname", "") or SESSION.get("dc_fqdn", "") or "").strip().lower()
+
+    known_domains = {"pirate.htb", "spookysec.local"}
+    conflicting_domains = [d for d in known_domains if d != current_domain and d in text]
+    if conflicting_domains:
+        return False
+
+    ips = set(re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text))
+    if ips and current_ip and current_ip not in ips:
+        return False
+
+    if current_domain and current_domain in text:
+        return True
+    if current_ip and current_ip in text:
+        return True
+    if current_host and current_host in text:
+        return True
+    return True
+
+
+def _normalize_agent_findings(findings: list[dict]) -> list[dict]:
+    unique, seen = [], set()
+    for finding in findings:
+        title = str(finding.get("title", "") or "").strip()
+        detail = str(finding.get("detail", "") or "").strip()
+        if not title or _is_analyst_generated_finding(title):
+            continue
+        if not _finding_matches_current_target(title, detail):
+            continue
+        key = (title.lower(), detail.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(finding)
+    return unique
+
+
+def _has_structured_data(users, groups, computers, hashes, certipy_vulns) -> bool:
+    return bool(
+        users or groups or computers or certipy_vulns
+        or hashes.get("kerberoast") or hashes.get("asrep")
+    )
+
 
 def _find_bh_files(pattern: str) -> list[Path]:
     """Find BloodHound JSON files in all known locations."""
@@ -69,6 +212,8 @@ def parse_bh_users() -> list[dict]:
             data = json.loads(f.read_text(errors="ignore"))
             for node in data.get("data", []):
                 props = node.get("Properties", {})
+                if not _bh_props_match_current_domain(props):
+                    continue
                 sam   = props.get("samaccountname", "") or props.get("name", "")
                 if not sam:
                     continue
@@ -103,7 +248,7 @@ def parse_bh_users() -> list[dict]:
                 })
         except Exception:
             pass
-    return users
+    return _dedupe_by(users, "samaccountname")
 
 
 def parse_bh_groups() -> list[dict]:
@@ -114,6 +259,8 @@ def parse_bh_groups() -> list[dict]:
             data = json.loads(f.read_text(errors="ignore"))
             for node in data.get("data", []):
                 props = node.get("Properties", {})
+                if not _bh_props_match_current_domain(props):
+                    continue
                 name  = props.get("name", "")
                 if not name:
                     continue
@@ -124,7 +271,7 @@ def parse_bh_groups() -> list[dict]:
                 groups.append({"cn": name.split("@")[0], "members": members})
         except Exception:
             pass
-    return groups
+    return _dedupe_by(groups, "cn")
 
 
 def parse_bh_computers() -> list[dict]:
@@ -135,6 +282,8 @@ def parse_bh_computers() -> list[dict]:
             data = json.loads(f.read_text(errors="ignore"))
             for node in data.get("data", []):
                 props = node.get("Properties", {})
+                if not _bh_props_match_current_domain(props):
+                    continue
                 name  = props.get("name", "") or props.get("cn", "")
                 if not name:
                     continue
@@ -148,7 +297,7 @@ def parse_bh_computers() -> list[dict]:
                 })
         except Exception:
             pass
-    return computers
+    return _dedupe_by(computers, "cn")
 
 
 def parse_agent_findings() -> list[dict]:
@@ -208,7 +357,7 @@ def parse_agent_findings() -> list[dict]:
             except Exception:
                 pass
 
-    return findings
+    return _normalize_agent_findings(findings)
 
 
 def parse_ldap_users() -> list[dict]:
@@ -217,11 +366,7 @@ def parse_ldap_users() -> list[dict]:
         return []
 
     # Skip files that contain only LDAP errors (GSSAPI/auth failures)
-    non_error_lines = [l for l in raw.splitlines()
-                       if l.strip() and not any(e in l for e in (
-                           "SASL", "GSSAPI", "ldap_sasl", "ldap3 error",
-                           "Kerberos", "additional info", "Local error"))]
-    if not non_error_lines:
+    if not _has_ldap_data(raw):
         return []
 
     users, current = [], {}
@@ -275,7 +420,7 @@ def parse_ldap_users() -> list[dict]:
 
 def parse_ldap_groups() -> list[dict]:
     raw = _read("enum/ldap_groups.txt")
-    if not raw:
+    if not raw or not _has_ldap_data(raw):
         return []
 
     groups, current = [], {}
@@ -297,7 +442,7 @@ def parse_ldap_groups() -> list[dict]:
 
 def parse_ldap_computers() -> list[dict]:
     raw = _read("enum/ldap_computers.txt")
-    if not raw:
+    if not raw or not _has_ldap_data(raw):
         return []
 
     computers, current = [], {}
@@ -389,12 +534,9 @@ def build_attack_plan(users, groups, computers, hashes, certipy_vulns,
                       agent_findings=None) -> list[dict]:
     plan   = []
     dc_ip  = SESSION.get("dc_ip", "")
-    dc_fqdn = SESSION.get("dc_fqdn") or dc_ip
     domain = SESSION.get("domain", "")
     user   = SESSION.get("username", "")
     pw     = SESSION.get("password", "")
-    bh_base = (f"bloodhound-python -u '{user}' -p '{pw}' -d {domain} "
-               f"-dc {dc_fqdn} -ns {dc_ip} --disable-autogc")
 
     # ── Password in description ───────────────────────────────────────────────
     for u in users:
@@ -501,7 +643,7 @@ def build_attack_plan(users, groups, computers, hashes, certipy_vulns,
             "title":    f"Domain Admins has {count} member(s)",
             "detail":   "Use BloodHound to find shortest attack paths to these accounts",
             "module":   "10",
-            "action":   f"{bh_base} -c All --zip",
+            "action":   _bloodhound_collection_action(),
         })
 
     # ── Legacy OS ────────────────────────────────────────────────────────────
@@ -527,7 +669,7 @@ def build_attack_plan(users, groups, computers, hashes, certipy_vulns,
             "title":    "BloodHound data not collected yet",
             "detail":   "Critical for visualising all attack paths to Domain Admin",
             "module":   "51",
-            "action":   f"Run the AI Agent [51] — it collects BloodHound automatically",
+            "action":   _manual_action("Run the AI Agent [51] - it collects BloodHound automatically"),
         })
 
     # ── Agent findings (from last scan report) ────────────────────────────────
@@ -545,7 +687,7 @@ def build_attack_plan(users, groups, computers, hashes, certipy_vulns,
             "title":    title,
             "detail":   af.get("detail", "See agent report for details"),
             "module":   "51",
-            "action":   "Run AI Agent [51] to auto-exploit this finding",
+            "action":   _manual_action("Run AI Agent [51] to continue from this finding"),
         })
 
     order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO"]
@@ -575,13 +717,13 @@ def _show_user_summary(users):
     print()
 
 
-def _show_plan(plan: list[dict]):
+def _show_plan(plan: list[dict], title: str = "ATTACK PLAN"):
     if not plan:
         warn("No data to analyse — run [10]→[A] Full Enum first")
         return
 
     print(f"\n  {fg(75)}{BOLD}{'─'*74}{RST}")
-    print(f"  {fg(75)}{BOLD}  ATTACK PLAN  —  {len(plan)} finding(s){RST}")
+    print(f"  {fg(75)}{BOLD}  {title}  —  {len(plan)} finding(s){RST}")
     print(f"  {fg(75)}{BOLD}{'─'*74}{RST}\n")
 
     for i, item in enumerate(plan, 1):
@@ -589,7 +731,11 @@ def _show_plan(plan: list[dict]):
         mod_tag = f"  {DIM}→ Module [{item['module']}]{RST}" if item.get("module") else ""
         print(f"  {fg(238)}[{i:>2}]{RST}  {sev_tag}  {BOLD}{item['title']}{RST}")
         print(f"         {DIM}{item['detail']}{RST}{mod_tag}")
-        print(f"         {fg(75)}$ {item['action']}{RST}")
+        action = item["action"]
+        if action.startswith("#"):
+            print(f"         {fg(75)}Next: {action[1:].strip()}{RST}")
+        else:
+            print(f"         {fg(75)}$ {action}{RST}")
         print()
 
 
@@ -598,6 +744,13 @@ def _show_plan(plan: list[dict]):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _auto_execute(plan: list[dict]):
+    if not plan:
+        return
+    runnable = [item for item in plan if not str(item.get("action", "")).startswith("#")]
+    if not runnable:
+        info("No executable analyst steps are available yet; collect LDAP/BloodHound data first.")
+        return
+
     print(f"  {fg(110)}Auto-execute a step? (number / 'a' for all / Enter to skip){RST}")
     choice = input(f"  {M}Choice:{RST} ").strip().lower()
 
@@ -617,6 +770,7 @@ def _auto_execute(plan: list[dict]):
     else:
         return
 
+    shown_manual = set()
     for idx in targets:
         item = plan[idx]
         if "prep" in item:
@@ -627,13 +781,20 @@ def _auto_execute(plan: list[dict]):
 
         action = item["action"]
         if action.startswith("#"):
+            manual = (action[1:].strip(), item.get("module"))
+            if manual in shown_manual:
+                continue
+            shown_manual.add(manual)
             info(f"Manual step: {action[1:].strip()}")
             if item.get("module"):
                 info(f"Select module [{item['module']}] from the main menu")
             continue
 
         print(f"\n  {fg(75)}{BOLD}Running:{RST} {item['title']}")
-        run_cmd(action)
+        rc = run_cmd(action, return_code=True)
+        if rc:
+            warn(f"Step failed with exit code {rc}; not recording it as a finding.")
+            continue
 
         hashes = parse_hashes()
         total = len(hashes["kerberoast"]) + len(hashes["asrep"])
@@ -645,12 +806,7 @@ def _auto_execute(plan: list[dict]):
                 hf = "/tmp/kerberoast.txt" if hashes["kerberoast"] else "/tmp/asrep.txt"
                 run_cmd(f"hashcat -m {ht} {hf} /usr/share/wordlists/rockyou.txt --force")
 
-        add_finding(
-            name=item["title"],
-            severity=item["severity"].capitalize(),
-            description=item["detail"],
-            recommendation=f"Command: {action[:120]}",
-        )
+        success("Step completed")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -729,7 +885,8 @@ def run():
     agent_findings = parse_agent_findings()
     stop()
 
-    has_data = users or groups or computers or hashes["kerberoast"] or certipy_v or agent_findings
+    has_structured = _has_structured_data(users, groups, computers, hashes, certipy_v)
+    has_data = has_structured or agent_findings
 
     # If still no data, auto-run Full Enum
     if not has_data:
@@ -750,7 +907,8 @@ def run():
         certipy_v      = parse_certipy()
         agent_findings = parse_agent_findings()
         stop2()
-        has_data       = users or certipy_v or agent_findings
+        has_structured = _has_structured_data(users, groups, computers, hashes, certipy_v)
+        has_data       = has_structured or agent_findings
 
     if not has_data:
         warn("No data collected — check DC/credentials and try again.")
@@ -766,8 +924,11 @@ def run():
           f"  {fg(110)}{len(computers)} computers{RST}  "
           f"  {fg(110)}{len(certipy_v)} ADCS vulns{RST}  "
           f"  {fg(110)}{len(agent_findings)} agent findings{RST}")
+    if not has_structured:
+        warn("Limited analysis: no current LDAP/BloodHound/hash/ADCS data is available for this target.")
+        info("Smart Analyst can only show existing agent findings until enumeration succeeds.")
 
     _show_user_summary(users)
-    _show_plan(plan)
+    _show_plan(plan, "ATTACK PLAN" if has_structured else "LIMITED FINDINGS")
     _auto_execute(plan)
     pause()
