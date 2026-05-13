@@ -91,6 +91,7 @@ AGENT_RUNTIME_DIR = Path(OUTPUT_DIR) / "agent_runtime"
 AGENT_RUNTIME_DIR.mkdir(exist_ok=True)
 AGENT_CLEAN_OUTPUT_ON_START = os.environ.get("AGENT_CLEAN_OUTPUT_ON_START", "true").lower() in ("1", "true", "yes", "on")
 AGENT_ARCHIVE_OLD_RUNS = os.environ.get("AGENT_ARCHIVE_OLD_RUNS", "true").lower() in ("1", "true", "yes", "on")
+AGENT_LIVE_COMMANDS = os.environ.get("ADSTRIKE_AGENT_LIVE_COMMANDS", "true").lower() in ("1", "true", "yes", "on")
 
 # ── OPSEC / Red Team settings ─────────────────────────────────────────────────
 # OPSEC_MODE: "loud"   — fast, no jitter, use all tools (labs/CTF)
@@ -617,6 +618,11 @@ def _print_tool_args(title: str, args: dict) -> None:
         print(f"  {AGENT_PINK}│{RST} {AGENT_BLUE}{str(key).ljust(width)}{RST} : {AGENT_TEXT}{_format_arg_value(safe[key])}{RST}")
 
 
+def _agent_live_status(message: str) -> None:
+    """Print an immediately flushed agent progress line for long blocking work."""
+    print(f"  {AGENT_BLUE}[*]{RST} {AGENT_TEXT}{message}{RST}", flush=True)
+
+
 _DIAGNOSTIC_PREFIXES = (
     "klist ",
     "klist\n",
@@ -642,6 +648,8 @@ def _record_agent_command(cmd: str) -> None:
     # Skip KRB5CCNAME=... klist ... wrappers
     if "klist" in lower[:80] and "KRB5CCNAME" in lower[:80]:
         return
+    if AGENT_LIVE_COMMANDS:
+        print(f"  {AGENT_BLUE}[run]{RST} {AGENT_TEXT}{clean}{RST}", flush=True)
     try:
         SESSION.setdefault("commands_run", []).append({
             "cmd": clean,
@@ -9442,6 +9450,7 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
     while not agent_done and round_num < MAX_ROUNDS:
         round_num += 1
 
+        _agent_live_status(f"Round {round_num}: asking Ollama model '{model}' for next action...")
         try:
             response = _ollama_chat_completion(
                 model=model,
@@ -9579,7 +9588,6 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
         is_fallback = tool_calls and tool_calls[0].id.startswith(("fallback_", "auto_"))
         for tc in tool_calls:
             name = tc.function.name
-            _print_agent_header(round_num, name)
             try:
                 inputs = json.loads(tc.function.arguments) if isinstance(
                     tc.function.arguments, str) else (tc.function.arguments or {})
@@ -9691,6 +9699,9 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
             # checks (e.g. discover_winrm_access < 2x) actually advance.
             tool_call_counts[name] = tool_call_counts.get(name, 0) + 1
 
+            _print_agent_header(round_num, name)
+            _print_tool_args("Inputs", inputs)
+            _agent_live_status(f"Dispatching {name}; command output will appear as each command starts...")
             cmd_start = _command_log_index()
             result = dispatch_tool(name, inputs)
             commands = _commands_since(cmd_start)
@@ -10344,6 +10355,7 @@ def run_agent(target_ip: str, domain: str, username: str,
         round_num += 1
 
         # Call Claude
+        _agent_live_status(f"Round {round_num}: asking Claude model '{MODEL}' for next action...")
         try:
             response = client.messages.create(
                 model=MODEL,
@@ -10473,6 +10485,8 @@ def run_agent(target_ip: str, domain: str, username: str,
                     tc_input = _sanitize_tool_inputs(tc_name, override_inputs)
 
             _print_agent_header(round_num, tc_name)
+            _print_tool_args("Inputs", tc_input)
+            _agent_live_status(f"Dispatching {tc_name}; command output will appear as each command starts...")
 
             cmd_start = _command_log_index()
             result = dispatch_tool(tc_name, tc_input)
@@ -10774,6 +10788,7 @@ def run():
         if use_ollama:
             for _k in ["HTTP_PROXY","HTTPS_PROXY","http_proxy","https_proxy","ALL_PROXY"]:
                 os.environ.pop(_k, None)
+            _agent_live_status(f"Asking Ollama model '{ollama_model}' to generate the plan...")
             resp = _ollama_chat_completion(
                 model=ollama_model,
                 messages=[{"role":"system","content":SYSTEM_PROMPT},
@@ -10783,6 +10798,7 @@ def run():
             section("AGENT ATTACK PLAN")
             print(resp.choices[0].message.content)
         else:
+            _agent_live_status(f"Asking Claude model '{MODEL}' to generate the plan...")
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
                 model=MODEL, max_tokens=4096,
