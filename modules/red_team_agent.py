@@ -41,6 +41,8 @@ def _ollama_chat_completion(model: str, messages: list, tools: list | None = Non
         "messages": messages,
         "temperature": temperature,
         "stream": False,
+        "keep_alive": -1,
+        "options": {"num_ctx": 4096, "num_gpu": 99},
     }
     if tools is not None:
         payload["tools"] = tools
@@ -93,13 +95,13 @@ AGENT_RUNTIME_DIR.mkdir(exist_ok=True)
 AGENT_CLEAN_OUTPUT_ON_START = os.environ.get("AGENT_CLEAN_OUTPUT_ON_START", "true").lower() in ("1", "true", "yes", "on")
 AGENT_ARCHIVE_OLD_RUNS = os.environ.get("AGENT_ARCHIVE_OLD_RUNS", "true").lower() in ("1", "true", "yes", "on")
 AGENT_LIVE_COMMANDS = os.environ.get("ADSTRIKE_AGENT_LIVE_COMMANDS", "true").lower() in ("1", "true", "yes", "on")
-OLLAMA_API_TIMEOUT = int(os.environ.get("ADSTRIKE_OLLAMA_TIMEOUT", "60"))
-OLLAMA_MAX_TOOLS = max(1, int(os.environ.get("ADSTRIKE_OLLAMA_MAX_TOOLS", "3")))
+OLLAMA_API_TIMEOUT = int(os.environ.get("ADSTRIKE_OLLAMA_TIMEOUT", "20"))
+OLLAMA_MAX_TOOLS = max(1, int(os.environ.get("ADSTRIKE_OLLAMA_MAX_TOOLS", "1")))
 OLLAMA_SHOW_FALLBACK_WARNINGS = os.environ.get(
     "ADSTRIKE_OLLAMA_SHOW_FALLBACK_WARNINGS", "false"
 ).lower() in ("1", "true", "yes", "on")
 OLLAMA_FORCE_LLM_DECISION = os.environ.get(
-    "ADSTRIKE_OLLAMA_FORCE_LLM_DECISION", "true"
+    "ADSTRIKE_OLLAMA_FORCE_LLM_DECISION", "false"
 ).lower() in ("1", "true", "yes", "on")
 
 # ── OPSEC / Red Team settings ─────────────────────────────────────────────────
@@ -3634,7 +3636,7 @@ def _has_directory_tgs(ccache: str, dc_fqdn: str = "") -> bool:
 def tool_nmap_scan(target_ip: str) -> str:
     ports = "53,80,88,135,139,389,443,445,464,593,636,1433,3268,3269,3389,5985,5986,8080,8443,8530,8531,9389"
     info(f"Running nmap on {target_ip}...")
-    out = _run(f"nmap -sV -sC -p {ports} --open -T4 {target_ip}", timeout=120)
+    out = _run(f"nmap -sV --version-intensity 0 -p {ports} --open -T5 --min-rate 5000 {target_ip}", timeout=60)
 
     open_ports = []
     for line in out.splitlines():
@@ -3721,6 +3723,41 @@ def _ldap3_query(dc_ip: str, domain: str, username: str, password: str,
         return "\n".join(lines) if lines else "(no results)"
     except Exception as e:
         return f"[ldap3 error] {e}"
+
+
+def _ldap_object_classes(dc_ip: str, domain: str, username: str,
+                         password: str = "", nt_hash: str = "",
+                         sam: str = "", timeout: int = 10) -> set:
+    """Best-effort LDAP objectClass lookup for an AD sAMAccountName."""
+    sam = str(sam or "").strip().strip("'\"")
+    if not sam or not domain:
+        return set()
+    base_dn = "DC=" + domain.replace(".", ",DC=")
+    escaped_sam = sam.replace("\\", "\\5c").replace("(", "\\28").replace(")", "\\29")
+    krb = SESSION.get("use_kerberos") and SESSION.get("krb5_ccache")
+    out = ""
+    if krb or _real_secret(password):
+        out = _ldap3_query(
+            dc_ip, domain, username, _real_secret(password),
+            base_dn, f"(sAMAccountName={escaped_sam})",
+            ["objectClass", "sAMAccountName"], use_ssl=False, timeout=timeout,
+        )
+    if not out or out.startswith("[ldap3 error]"):
+        auth = _auth_args_nxc(username, password, nt_hash, domain, dc_ip)
+        out = _nxc(
+            f"ldap {shell_quote(dc_ip)} {auth} --query "
+            f"{shell_quote(f'(sAMAccountName={escaped_sam})')} objectClass",
+            timeout=timeout,
+        )
+    classes = {
+        m.group(1).strip().lower()
+        for m in re.finditer(r"objectClass:\s*([^\r\n]+)", out or "", re.I)
+    }
+    if "msds-groupmanagedserviceaccount" in (out or "").lower():
+        classes.add("msds-groupmanagedserviceaccount")
+    if re.search(r"\bcomputer\b", out or "", re.I):
+        classes.add("computer")
+    return classes
 
 
 def tool_enumerate_ldap(dc_ip: str, domain: str, username: str,
@@ -7333,6 +7370,14 @@ def tool_rbcd_attack(dc_ip: str, domain: str, username: str,
     if target_sam.lower().rstrip("$") in explicit_gmsa:
         return (f"RBCD skipped: {target_sam} is a known gMSA, not a computer host. "
                 "Use gmsa_takeover/gmsa_read instead.")
+    target_classes = _ldap_object_classes(
+        dc_ip, domain, username, password=password, nt_hash=nt_hash, sam=target_sam)
+    if "msds-groupmanagedserviceaccount" in target_classes:
+        return (f"RBCD skipped: {target_sam} is a known gMSA, not a computer host. "
+                "Use gmsa_takeover/gmsa_read instead.")
+    if target_classes and "computer" not in target_classes:
+        return (f"RBCD skipped: {target_sam} objectClass={sorted(target_classes)}. "
+                "RBCD requires a real computer object.")
 
     attacker_stem = f"ADS{secrets.token_hex(4).upper()}"
     attacker_computer = f"{attacker_stem}$"
@@ -8605,7 +8650,7 @@ def _session_context() -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _build_ollama_system_prompt() -> str:
-    """Very small prompt for local models with 4096-token contexts."""
+    """Balanced prompt for local models; tool schemas stay small separately."""
     return """You are an authorized Active Directory red team agent.
 Mission: find the highest-impact path to Domain Admin and prove it with DCSync.
 
@@ -8616,18 +8661,32 @@ Rules:
 - Read the latest tool result and choose the highest-impact next action.
 - Do not repeat a completed or failed path unless the menu explicitly offers it.
 
-Priority guide:
+Core reasoning after each result:
+1. Extract concrete facts: users, hashes, SPNs, ESC IDs, ACL edges, shares, shells.
+2. Prefer exploitation of a proven finding over more enumeration.
+3. If a branch fails, pivot to the next candidate instead of retrying blindly.
+
+Priority matrix:
 - DA membership, DA hash, or replication rights -> dcsync_attack, then report.
 - NT hash, valid credential, or ccache -> discover_winrm_access or evil_winrm.
 - WinRM shell confirmed -> windows_privesc_recon, credential_loot, jea_enum.
-- NTLM disabled or STATUS_NOT_SUPPORTED -> request_tgt before LDAP/ADCS/WinRM.
-- ADCS ESC finding -> adcs_scan with auto_exploit, then evil_winrm.
-- SPN accounts -> kerberoast. Pre-auth disabled users -> asrep_roast.
+- NTLM disabled, STATUS_NOT_SUPPORTED, or Protected Users -> request_tgt first.
+- ADCS ESC finding -> adcs_scan(auto_exploit=True), then evil_winrm with ccache.
+- SPN accounts -> kerberoast. Pre-auth disabled users -> asrep_roast. Crack offline.
 - Readable shares -> auto_loot_chain to extract credentials.
 - ACL GenericWrite/GenericAll/WriteDACL/WriteOwner on gMSA ($) -> gmsa_takeover.
 - ForceChangePassword edge -> force_change_password_pivot.
-- GenericWrite on a computer -> rbcd_attack or shadow_credentials_attack.
+- GenericWrite on a real computer object -> rbcd_attack or shadow_credentials_attack.
+- GenericWrite on a user -> targeted_kerberoast or shadow_credentials_attack.
+- Trust found -> trust_attack. Unconstrained delegation -> unconstrained_delegation.
+- Legacy/old computers -> pre2k_attack and timeroast.
+- MSSQLSvc or 1433 -> mssql abuse path.
 - No clear exploit -> enumerate_ldap, enumerate_shares, acl_abuse_scan, BloodHound.
+
+Target safety:
+- RBCD is only for computer objects, not gMSA/service accounts.
+- gMSA accounts use gmsa_takeover/gmsa_read, then pass-the-hash/WinRM.
+- Do not attack the current user as the ACL target.
 
 The rule engine supplies the valid menu. Pick one listed tool and call it."""
 
