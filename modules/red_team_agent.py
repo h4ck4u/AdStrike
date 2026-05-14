@@ -9378,7 +9378,7 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
     """Agent loop using Ollama's local OpenAI-compatible API."""
     _check_runtime_ownership()
 
-    # Proxy temizle
+    # Clear proxy environment variables
     for _k in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY"]:
         os.environ.pop(_k, None)
 
@@ -9471,8 +9471,8 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
                     max_tokens=512,
                 )
             except Exception as e2:
-                error(f"Ollama API hatasi: {e2}")
-                warn("Ollama calisiyor mu? -> sudo systemctl start ollama")
+                error(f"Ollama API error: {e2}")
+                warn("Is Ollama running? -> sudo systemctl start ollama")
                 break
 
         msg        = response.choices[0].message
@@ -10684,7 +10684,7 @@ def run():
 
     use_ollama = (backend != "2")
 
-    # ── Hedef bilgileri ───────────────────────────────────────────────────────
+    # ── Target information ────────────────────────────────────────────────────
     dc_ip    = _ios("dc_ip",    "DC IP Address")
     domain   = _ios("domain",   "Domain")
     username = _ios("username", "Username")
