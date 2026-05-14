@@ -427,6 +427,88 @@ OPSEC modes:
 
 ---
 
+## Performance / GPU Acceleration
+
+### Why the Ollama agent may feel slow
+
+The agent uses a rule engine for most decisions (no LLM call). Rounds that require LLM input call Ollama locally. If Ollama runs on CPU instead of GPU, each call takes 15–30 seconds instead of 2–5 seconds.
+
+Verify which processor Ollama is using:
+
+```bash
+ollama ps
+# PROCESSOR column should show "GPU", not "100% CPU"
+```
+
+---
+
+### Fix: Ollama not detecting the GPU (Kali / systemd)
+
+On some Kali Linux setups the `ollama` systemd service starts before CUDA libraries are on the library path, so `GPULayers:[]` appears in the logs and inference falls back to CPU.
+
+**Step 1 — add CUDA environment variables to the service:**
+
+```bash
+sudo nano /etc/systemd/system/ollama.service
+```
+
+Add these three lines inside the `[Service]` block:
+
+```ini
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="LD_LIBRARY_PATH=/usr/local/lib/ollama/cuda_v12:/usr/lib/x86_64-linux-gnu"
+Environment="OLLAMA_GPU_OVERHEAD=0"
+```
+
+Full `[Service]` block example after the edit:
+
+```ini
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+Environment="PATH=..."
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="LD_LIBRARY_PATH=/usr/local/lib/ollama/cuda_v12:/usr/lib/x86_64-linux-gnu"
+Environment="OLLAMA_GPU_OVERHEAD=0"
+```
+
+**Step 2 — reload and restart:**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+```
+
+**Step 3 — confirm GPU is in use:**
+
+```bash
+ollama ps
+# Expected: PROCESSOR = GPU (or a percentage, not "100% CPU")
+```
+
+> **Note:** The CUDA path `/usr/local/lib/ollama/cuda_v12` is created by the official Ollama Linux installer. If you installed Ollama a different way, adjust the path to match where `libcublas.so.12` lives on your system.
+
+---
+
+### Recommended Ollama model for speed vs quality
+
+| Model | VRAM | Speed | Tool-call quality |
+|---|---|---|---|
+| `qwen2.5-coder:7b` | ~5 GB | Medium | Best for AD agent |
+| `llama3.2:3b` | ~2 GB | Fastest | Good for low-VRAM machines |
+| `mistral:latest` | ~4.5 GB | Medium | Decent fallback |
+
+Pull a model:
+
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
+---
+
 ## Repair and Troubleshooting
 
 Check installed tools and module imports:
