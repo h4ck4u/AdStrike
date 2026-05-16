@@ -37,8 +37,9 @@ Important paths:
 |---|---|
 | `main.py` | Main menu, phase registry, module dispatch, banner, dashboard |
 | `config/settings.py` | Global `SESSION`, `.env` loading, redaction, Kerberos helpers |
-| `modules/` | Interactive attack modules and agent implementation |
-| `modules/red_team_agent.py` | AdStrike Agent, AI tools, decision engine, fallback logic |
+| `modules/` | Interactive attack modules and shared framework modules |
+| `modules/red_team_agent.py` | Backward-compatible shim used by the main menu; delegates to `modules/agent/_core.py` |
+| `modules/agent/` | Current Agent package: orchestration core, backend adapters, constants, and logging |
 | `utils/helpers.py` | Console UI helpers, command helpers, findings helpers |
 | `tools/bin/` | Bundled helper scripts such as `gMSADumper.py` and `gmsa_grant_and_dump.py` |
 | `ActiveDirectory-SAST/` | YAML knowledge base consumed by the agent prompt |
@@ -73,7 +74,7 @@ Core fields:
 | `owned_users` | Compromised users or service accounts |
 | `owned_machines` | Hosts with confirmed shell or admin access |
 | `loot` | Discovered secrets, hashes, and credential material |
-| `agent_intel` | Agent-specific extracted evidence and dead-path state |
+| `agent_intel` | Agent-specific extracted evidence and dead-path state; created dynamically when the Agent runs |
 
 The session is loaded from `.env` and persisted into `output/session.json`.
 
@@ -108,7 +109,7 @@ Important behaviour:
 
 ## 7. Main Menu Coverage
 
-AdStrike exposes 56 menu entries grouped into kill-chain phases.
+AdStrike exposes 56 menu entries grouped into 9 kill-chain phase groups plus utilities.
 
 ### Phase 0: Reconnaissance
 
@@ -218,7 +219,14 @@ AdStrike exposes 56 menu entries grouped into kill-chain phases.
 
 ## 8. AdStrike Agent Overview
 
-The AdStrike Agent is implemented in `modules/red_team_agent.py`. It exposes framework functionality as AI-callable tools and runs an iterative loop:
+The AdStrike Agent is exposed through `modules/red_team_agent.py`, but the current implementation lives in the `modules/agent/` package:
+
+- `modules/agent/_core.py`: orchestration loop, tool handlers, intel parsing, sanitization, and fallback logic
+- `modules/agent/constants.py`: runtime settings and environment-driven toggles
+- `modules/agent/backends.py`: Ollama and Claude adapters
+- `modules/agent/logger.py`: Markdown logging
+
+It exposes framework functionality as AI-callable tools and runs an iterative loop:
 
 1. Build system prompt and current session context.
 2. Ask the selected AI backend for the next tool call.
@@ -245,10 +253,11 @@ The agent is intentionally not a hard-coded exploit script. It is a tool orchest
 | `output/agent_logs/*.json` | Recent JSON conversation/session data |
 | `output/agent_runtime/*.ccache` | Generated Kerberos ticket caches |
 | `output/agent_runtime/krb5_*.conf` | Target-specific Kerberos configs |
-| `/tmp/agent_loot_chain` | Temporary downloaded share data |
-| `/tmp/agent_loot` | Temporary wordlists and loot fragments |
+| `output/agent_runtime/agent_loot*` | Agent-owned runtime scratch paths created for the current run |
+| `/tmp/agent_loot_chain` | Legacy/compatibility temporary downloaded share data still used by some helper flows |
+| `/tmp/agent_loot` | Legacy/compatibility temporary wordlists and loot fragments still used by some helper flows |
 
-The agent refuses to run as root if output directories are owned by another user. This prevents confusing failures where user-site Python tools such as `bloodyAD` are unavailable under `sudo`.
+The agent refuses to run as root, and it also refuses to continue when its output directories are owned by another user. This prevents confusing failures where user-site Python tools such as `bloodyAD` are unavailable under `sudo` or the current user cannot write reports.
 
 ### Agent Output Cleanup
 
@@ -270,7 +279,7 @@ Environment switches:
 
 ## 10. Agent Tool Set
 
-The Agent exposes these high-level tools:
+The Agent currently exposes these 52 high-level tools:
 
 | Tool | Purpose |
 |---|---|
@@ -291,12 +300,13 @@ The Agent exposes these high-level tools:
 | `dcsync_attack` | Dump domain hashes if replication rights are available |
 | `lateral_movement` | Execute commands over WinRM, WMI, PSExec-like channels |
 | `windows_privesc_recon` | Post-WinRM local escalation reconnaissance |
-| `smart_flag_hunt` | Flag search helper for lab environments |
+| `credential_loot` | Post-exploitation credential hunting on a confirmed host |
 | `test_credential` | Test password/hash across SMB, LDAP, WinRM |
 | `discover_winrm_access` | Find which host accepts WinRM for a credential |
 | `update_session` | Persist newly discovered material |
 | `run_module` | Run an arbitrary numbered AdStrike module |
 | `generate_report` | Produce report outputs |
+| `chain_planner` | Rank attack chains from collected intel and graph data |
 | `bloodyad` | Generic wrapper for bloodyAD object operations |
 | `gmsa_read` | Read gMSA managed password where allowed |
 | `gmsa_takeover` | Modify gMSA read membership, dump hash, prepare PTH |
@@ -305,7 +315,26 @@ The Agent exposes these high-level tools:
 | `request_tgt` | Obtain Kerberos TGT and configure session |
 | `evil_winrm` | Test or launch WinRM shell path |
 | `kerbrute_enum` | Username enumeration over Kerberos |
+| `no_cred_surface_recon` | No-credential AD surface checks |
 | `agent_complete` | End mission with status |
+| `rbcd_attack` | Resource-Based Constrained Delegation chain |
+| `coercion_attack` | Coercion/relay-oriented authentication forcing |
+| `unconstrained_delegation` | Unconstrained delegation abuse workflow |
+| `pre2k_attack` | Pre-Windows 2000 account abuse checks |
+| `timeroast` | Timeroasting workflow |
+| `credential_dump` | Remote credential dumping workflow |
+| `laps_read` | LAPS credential read workflow |
+| `mssql_abuse` | MSSQL abuse workflow |
+| `shadow_copies_dump` | Shadow copy credential extraction workflow |
+| `golden_ticket` | Golden Ticket workflow |
+| `silver_ticket` | Silver Ticket workflow |
+| `trust_attack` | Trust abuse workflow |
+| `user_hunt` | User/session hunting workflow |
+| `gpo_abuse` | GPO abuse workflow |
+| `sccm_abuse` | SCCM/MECM abuse workflow |
+| `adidns_abuse` | AD-integrated DNS abuse workflow |
+| `pass_the_cert` | Pass-the-Certificate workflow |
+| `rodc_attack` | RODC abuse workflow |
 
 ## 11. Tool Argument Sanitization
 
