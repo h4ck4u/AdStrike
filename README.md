@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![Platform](https://img.shields.io/badge/Platform-Kali%20%7C%20Parrot-brightgreen?style=flat-square&logo=linux)](https://www.kali.org)
-[![Menu](https://img.shields.io/badge/Menu-56%20entries-purple?style=flat-square)](modules/)
+[![Menu](https://img.shields.io/badge/Menu-58%20entries-purple?style=flat-square)](modules/)
 [![Phases](https://img.shields.io/badge/Kill--Chain-8%20Phases-red?style=flat-square)]()
 [![Primitives](https://img.shields.io/badge/Tradecraft-400%2B%20Primitives-orange?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-GPLv3-yellow?style=flat-square)](LICENSE)
@@ -31,7 +31,7 @@ The framework stores target details, credentials, Kerberos state, findings, exec
 
 Core capabilities:
 
-- 56 interactive menu entries: 50 attack modules, 4 utilities, 2 management functions
+- 58 interactive menu entries: 52 attack modules, 4 utilities, 2 management functions
 - 9 kill-chain phase groups, from reconnaissance through advanced operations
 - Kerberos-aware workflows for NTLM-disabled and LDAP-signing-enforced environments
 - Smart Analyst for parsing output and ranking next actions
@@ -152,11 +152,11 @@ bash run.sh
 Recommended first-run flow:
 
 ```text
-[55] Session Manager  -> configure target and credentials
-[56] Tool Checker     -> verify external tools and module imports
+[57] Session Manager  -> configure target and credentials
+[58] Tool Checker     -> verify external tools and module imports
 [10] AD Enumeration   -> collect baseline LDAP/SMB/GPO data
-[52] Smart Analyst    -> parse output and rank next steps
-[54] Generate Report  -> export findings and evidence
+[54] Smart Analyst    -> parse output and rank next steps
+[56] Generate Report  -> export findings and evidence
 ```
 
 Direct module execution:
@@ -165,7 +165,7 @@ Direct module execution:
 python -m venv venv     
 source venv/bin/activate
 python3 main.py --module 10
-python3 main.py --module 56 --no-banner
+python3 main.py --module 58 --no-banner
 python3 main.py --session output/session.json --no-banner
 ```
 
@@ -180,7 +180,7 @@ Current local health check:
 
 ```text
 Menu numbering is contiguous and unique
-Module health OK: 54/54
+Module health OK: 56/56
 ```
 
 ---
@@ -196,9 +196,9 @@ Module health OK: 54/54
 | 4 | 28-32 | Lateral movement |
 | 5 | 33-36 | Credential access |
 | 6 | 37-42 | Persistence |
-| 7 | 43-46 | Cloud / hybrid |
-| 8 | 47-50 | Advanced operations |
-| Utilities | 51-56 | Agent, Analyst, Kerberos Manager, reporting, sessions, tool checking |
+| 7 | 43-48 | Cloud / hybrid |
+| 8 | 49-52 | Advanced operations |
+| Utilities | 53-58 | Agent, Analyst, Kerberos Manager, reporting, sessions, tool checking |
 
 ### Reconnaissance
 
@@ -285,26 +285,28 @@ Module health OK: 54/54
 | 44 | Entra Hybrid Attacks | MSOL DCSync, Device Code flow, PTA injection |
 | 45 | gMSA Attacks | Enumeration, hash extraction, pass-the-hash, shadow credentials |
 | 46 | ADFS & Golden SAML | Token signing certificate, Golden SAML, AADInternals |
+| 47 | AiTM / MFA Bypass | Evilginx2, Modlishka, EvilnoVNC, MFA fatigue, cookie replay, hybrid pivot |
+| 48 | M365 / Teams Attacks | MailSniper, Graph API, Teams phishing, SharePoint theft, Intune abuse |
 
 ### Advanced Operations
 
 | # | Module | Coverage |
 |---|---|---|
-| 47 | Exploit Chains | Pre-built full attack paths |
-| 48 | C2 Integration | Sliver, Havoc, Metasploit, Cobalt Strike payload delivery |
-| 49 | Loot Parser & Analyzer | Parse, deduplicate, score, and export loot |
-| 50 | AD Advanced Playbook | WDAC, MDE/MDI, WMI filters, trusts, deception |
+| 49 | Exploit Chains | Pre-built full attack paths |
+| 50 | C2 Integration | Sliver, Havoc, Metasploit, Cobalt Strike payload delivery |
+| 51 | Loot Parser & Analyzer | Parse, deduplicate, score, and export loot |
+| 52 | AD Advanced Playbook | WDAC, MDE/MDI, WMI filters, trusts, deception |
 
 ### Utilities
 
 | # | Utility | Purpose |
 |---|---|---|
-| 51 | AdStrike Agent (AI) | Optional AI-assisted planner/orchestrator |
-| 52 | Smart Analyst | Parse output, build an attack plan, optionally execute steps |
-| 53 | Kerberos Manager | TGT, PTT, S4U, ccache, kirbi, krb5.conf management |
-| 54 | Generate Report | HTML, Markdown, and JSON reporting |
-| 55 | Session Manager | Save, load, switch, and clear sessions |
-| 56 | Tool Checker | Verify external tools and module imports |
+| 53 | AdStrike Agent (AI) | Optional AI-assisted planner/orchestrator |
+| 54 | Smart Analyst | Parse output, build an attack plan, optionally execute steps |
+| 55 | Kerberos Manager | TGT, PTT, S4U, ccache, kirbi, krb5.conf management |
+| 56 | Generate Report | HTML, Markdown, and JSON reporting |
+| 57 | Session Manager | Save, load, switch, and clear sessions |
+| 58 | Tool Checker | Verify external tools and module imports |
 
 ---
 
@@ -509,7 +511,7 @@ ollama pull qwen2.5-coder:7b
 Check installed tools and module imports:
 
 ```bash
-python3 main.py --module 56 --no-banner
+python3 main.py --module 58 --no-banner
 ```
 
 Repair missing tools where possible:
