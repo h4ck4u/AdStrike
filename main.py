@@ -15,6 +15,7 @@ from utils.helpers import (
     NEON_RED, NEON_ORG, NEON_YEL, NEON_GRN, NEON_CYN, NEON_BLU,
     NEON_PUR, NEON_PNK, BABY_BLUE, SKY_BLUE, LIGHT_PINK, SOFT_PINK,
     PURE_WHITE, SOFT_WHITE, MIST, SLATE, STEEL, SILVER, fg,
+    ADSTRIKE_PINK, ADSTRIKE_PURPLE,
     success, warn, info, error, prompt, pause, cprint,
     print_banner, print_table, spinner,
 )
@@ -191,6 +192,8 @@ PHASES = [
         ("44", "Entra Hybrid Attacks",      "modules.entra_hybrid_attacks","MSOL DCSync · adconnect.ps1 · DeviceCode · PTA"),
         ("45", "gMSA Attacks",              "modules.gmsa_attacks",       "Enum · extract · PTH · shadow-creds · DSInternals"),
         ("46", "ADFS & Golden SAML",        "modules.adfs_attacks",       "Token signing cert · Golden SAML · AADInternals"),
+        ("47", "AiTM / MFA Bypass",         "modules.aitm_mfa_bypass",    "Evilginx2 · MFA fatigue · cookie replay · hybrid pivot"),
+        ("48", "M365 / Teams Attacks",      "modules.m365_teams_attacks", "MailSniper · Graph API · Teams phishing · Intune abuse"),
     ]),
     ("8", "ADVANCED OPERATIONS",  _C2, [
         ("47", "Exploit Chains",            "modules.exploit_chains",     "8 pre-built full-DA attack paths"),
