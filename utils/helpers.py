@@ -29,6 +29,10 @@ def bg_rgb(r, g, b): return f"\033[48;2;{r};{g};{b}m"
 ADSTRIKE_RED  = fg_rgb(253, 38, 54)
 ADSTRIKE_BLUE = fg(45)
 
+# Keep ADSTRIKE_PINK / ADSTRIKE_PURPLE as aliases so new modules compile cleanly
+ADSTRIKE_PINK   = ADSTRIKE_RED
+ADSTRIKE_PURPLE = ADSTRIKE_BLUE
+
 BABY_BLUE   = ADSTRIKE_BLUE
 SKY_BLUE    = ADSTRIKE_BLUE
 LIGHT_PINK  = ADSTRIKE_RED
