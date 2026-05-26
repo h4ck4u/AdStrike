@@ -64,6 +64,8 @@ Core capabilities:
 ```bash
 git clone https://github.com/capture0x/AdStrike.git
 cd AdStrike
+python -m venv venv     
+source venv/bin/activate
 chmod +x install.sh run.sh
 bash install.sh
 bash run.sh
