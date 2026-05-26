@@ -452,7 +452,7 @@ def has_domain_creds() -> bool:
     return bool(SESSION.get("domain") and has_creds())
 
 # ── Session persistence ───────────────────────────────────────────────────────
-def save_session(path: Path = SESSION_FILE, redact: bool = True) -> None:
+def save_session(path: Path = SESSION_FILE, redact: bool = False) -> None:
     path.parent.mkdir(exist_ok=True)
     data = {k: v for k, v in SESSION.items() if k != "commands_run"}
     if redact and not SHOW_SECRETS:
