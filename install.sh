@@ -2,7 +2,8 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # AdStrike v5.0 «AdStrike» — Installer
 # Tested on Kali Linux 2024+ / Parrot OS
-# AUTHORISED PENETRATION TESTING ONLY
+# AUTHORISED PENETRATION TESTING ONLY 
+# by TMRSWRR
 # ══════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -140,6 +141,16 @@ APT_PKGS=(
 sudo apt-get install -y -qq "${APT_PKGS[@]}" 2>/dev/null \
     && ok "System packages installed" \
     || warn "Some apt packages failed — check manually"
+
+# ── SecLists (skip if already installed — large package ~450MB) ───────────────
+if dpkg -s seclists &>/dev/null; then
+    ok "seclists already installed — skipping"
+else
+    step "Installing seclists (wordlists)"
+    sudo apt-get install -y -qq seclists 2>/dev/null \
+        && ok "seclists installed" \
+        || warn "seclists install failed — install manually: sudo apt install seclists"
+fi
 
 # ── Python virtual environment ────────────────────────────────────────────────
 step "Setting up virtual environment → ${VENV_DIR#$SCRIPT_DIR/}"
