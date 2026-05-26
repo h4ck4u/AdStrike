@@ -98,7 +98,11 @@ def main():
         for entry in conn.entries:
                 sam = entry['sAMAccountName'].value
                 print('Users or groups who can read password for '+sam+':')
-                for dacl in SR_SECURITY_DESCRIPTOR(data=entry['msDS-GroupMSAMembership'].raw_values[0])['Dacl']['Data']:
+                raw_mb = entry['msDS-GroupMSAMembership'].raw_values
+                if not raw_mb:
+                    print(' (no principals in msDS-GroupMSAMembership yet)')
+                    continue
+                for dacl in SR_SECURITY_DESCRIPTOR(data=raw_mb[0])['Dacl']['Data']:
                     conn.search(base_creator(args.domain), '(&(objectSID='+dacl['Ace']['Sid'].formatCanonical()+'))', attributes=['sAMAccountName'])
                     
                     # Added this check to prevent an error from occuring when there are no results returned
