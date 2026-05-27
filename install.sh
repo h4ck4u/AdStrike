@@ -191,10 +191,29 @@ step "Installing Python dependencies"
 [[ -f "$REQ_FILE" ]] && "${PIP_CMD[@]}" install -q -r "$REQ_FILE" && ok "requirements.txt installed"
 
 step "Installing extra pip-only tools"
-for pkg in netexec certipy-ad bloodhound mitm6 lsassy dploot roadrecon roadtx coercer ldap3; do
+for pkg in netexec certipy-ad bloodhound mitm6 lsassy dploot roadrecon roadtx ldap3; do
     "${PIP_CMD[@]}" install -q "$pkg" 2>/dev/null && ok "$pkg" \
         || warn "$pkg failed — may already be installed system-wide"
 done
+
+# coercer declares impacket<0.11.0 which would downgrade impacket and break
+# certipy shadow_credentials. Install without deps, then re-pin impacket.
+"${PIP_CMD[@]}" install -q --no-deps coercer 2>/dev/null && ok "coercer (no-deps)" \
+    || warn "coercer failed — may already be installed system-wide"
+
+# Re-pin impacket after all tools are installed. Some tools (coercer) declare
+# outdated impacket pins that would downgrade it and break certipy shadow_credentials.
+step "Re-pinning impacket>=0.13.0 (ensures shadow_credentials support)"
+"${PIP_CMD[@]}" install -q "impacket>=0.13.0" --upgrade 2>/dev/null \
+    && ok "impacket pinned to $(${PIP_CMD[@]} show impacket 2>/dev/null | grep ^Version | cut -d' ' -f2)" \
+    || warn "impacket re-pin failed — shadow_credentials may not work"
+
+# Verify shadow_credentials is importable
+if "$VENV_PY" -c "from impacket.examples.ntlmrelayx.utils import shadow_credentials" 2>/dev/null; then
+    ok "shadow_credentials import verified"
+else
+    warn "shadow_credentials import failed — certipy shadow may not work"
+fi
 
 # ── Repo-local helper tools ───────────────────────────────────────────────────
 step "Installing repo-local helper tools"
