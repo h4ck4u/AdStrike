@@ -8,7 +8,16 @@
 """
 
 import sys, os, json, datetime, importlib, platform, argparse, time, shutil
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TOOLS_BIN_DIR = os.path.join(BASE_DIR, "tools", "bin")
+
+sys.path.insert(0, BASE_DIR)
+if os.path.isdir(TOOLS_BIN_DIR):
+    current_path = os.environ.get("PATH", "")
+    path_parts = current_path.split(os.pathsep) if current_path else []
+    if TOOLS_BIN_DIR not in path_parts:
+        os.environ["PATH"] = os.pathsep.join([TOOLS_BIN_DIR, *path_parts])
 
 from utils.helpers import (
     R, G, Y, B, M, C, W, DIM, BOLD, ITAL, UND, RST,
@@ -715,19 +724,33 @@ def tool_checker():
         "C2":        ["sliver-server", "havoc", "msfconsole"],
         "Misc":      ["dig", "dnstool.py", "rpcclient", "smbclient", "jq"],
     }
+    optional_tools = {
+        "rustscan", "lazagne", "certsync", "sccmhunter", "SharpSCCM.exe",
+        "AADInternals", "sliver-server", "havoc",
+    }
 
     total = sum(len(v) for v in groups.values())
+    required_total = sum(1 for tools in groups.values() for t in tools if t not in optional_tools)
     found = 0
+    required_found = 0
     rows  = []
     for group, tools in groups.items():
         for t in tools:
             present = bool(shutil.which(t) or shutil.which(t.split(".")[0]))
-            if present: found += 1
-            status = f"{BABY_BLUE}{BOLD}● READY{RST}" if present else f"{LIGHT_PINK}{BOLD}○ MISSING{RST}"
+            optional = t in optional_tools
+            if present:
+                found += 1
+                if not optional:
+                    required_found += 1
+                status = f"{BABY_BLUE}{BOLD}● READY{RST}"
+            elif optional:
+                status = f"{SOFT_WHITE}○ OPTIONAL{RST}"
+            else:
+                status = f"{LIGHT_PINK}{BOLD}○ MISSING{RST}"
             rows.append([group, t, status])
 
     print_table(["Group", "Tool", "Status"], rows,
-                f"Tool availability — {BABY_BLUE}{found}{RST}/{total} ready")
+                f"Tool availability — required {BABY_BLUE}{required_found}{RST}/{required_total} ready · total {BABY_BLUE}{found}{RST}/{total} ready")
 
     module_rows = []
     module_health = {"total": 0, "ok": 0, "missing_run": 0, "errors": []}
@@ -756,7 +779,14 @@ def tool_checker():
 
     audit = {
         "generated": datetime.datetime.now().isoformat(),
-        "tools": {"ready": found, "total": total, "groups": groups},
+        "tools": {
+            "ready": found,
+            "total": total,
+            "required_ready": required_found,
+            "required_total": required_total,
+            "optional_tools": sorted(optional_tools),
+            "groups": groups,
+        },
         "modules": module_health,
         "session": {
             "domain": SESSION.get("domain", ""),
