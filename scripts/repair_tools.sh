@@ -115,7 +115,9 @@ link_tool() {
     local name="$2"
     [[ -f "$src" ]] || return 0
     mkdir -p "$BIN_DIR"
-    ln -sf "$src" "$BIN_DIR/$name"
+    local rel_src
+    rel_src="$(realpath --relative-to="$BIN_DIR" "$src" 2>/dev/null || printf '%s' "$src")"
+    ln -sfn "$rel_src" "$BIN_DIR/$name"
     chmod +x "$src" "$BIN_DIR/$name" 2>/dev/null || true
 }
 
