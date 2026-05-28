@@ -67,6 +67,7 @@ SESSION: dict = {
     "start_time":      datetime.now().isoformat(),
 
     # Runtime
+    "hostname":        "",
     "commands_run":    [],
     "findings":        [],
     "owned_users":     [],
