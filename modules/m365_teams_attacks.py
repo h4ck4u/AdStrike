@@ -613,7 +613,7 @@ def run():
     "/root/.config/Microsoft/Microsoft Teams/Local Storage/leveldb/*.ldb"
   ]
 
-  token_re = re.compile(r'(eyJ[A-Za-z0-9_-]{{100,}}\.eyJ[A-Za-z0-9_-]{{50,}}\.[A-Za-z0-9_-]{{20,}})')
+  token_re = re.compile(r'(eyJ[A-Za-z0-9_-]{{100,}}\\.eyJ[A-Za-z0-9_-]{{50,}}\\.[A-Za-z0-9_-]{{20,}})')
 
   for pattern in paths:
     for f in glob.glob(pattern):
