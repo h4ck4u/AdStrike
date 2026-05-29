@@ -34,6 +34,26 @@ def load_env(path: Path = ENV_FILE) -> dict:
 
 _ENV = load_env()
 
+def _ip_for_iface(iface: str) -> str:
+    """Best-effort local IPv4 lookup for listener/coercion callbacks."""
+    iface = (iface or "").strip()
+    if not iface:
+        return ""
+    try:
+        out = subprocess.check_output(
+            ["ip", "-4", "-o", "addr", "show", "dev", iface],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    except Exception:
+        return ""
+    m = re.search(r"\binet\s+(\d+\.\d+\.\d+\.\d+)/", out)
+    return m.group(1) if m else ""
+
+_ATTACKER_IFACE = _ENV.get("ATTACKER_IFACE", "tun0")
+_ATTACKER_IP = _ENV.get("ATTACKER_IP", "") or _ip_for_iface(_ATTACKER_IFACE)
+
 # ── SESSION ───────────────────────────────────────────────────────────────────
 SESSION: dict = {
     # Target
@@ -58,8 +78,8 @@ SESSION: dict = {
     "upn":             "",
 
     # Attacker
-    "attacker_ip":     _ENV.get("ATTACKER_IP", ""),
-    "attacker_iface":  _ENV.get("ATTACKER_IFACE", "tun0"),
+    "attacker_ip":     _ATTACKER_IP,
+    "attacker_iface":  _ATTACKER_IFACE,
 
     # Engagement
     "engagement":      _ENV.get("ENGAGEMENT_NAME", ""),
