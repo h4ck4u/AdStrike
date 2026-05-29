@@ -509,6 +509,17 @@ def _reset_agent_runtime_state() -> None:
     SESSION["owned_machines"] = []
     SESSION["loot"] = {}
     SESSION["agent_intel"] = {}
+    # Cross-session state that must not leak when targeting a different domain
+    SESSION["winrm_dead_for"] = []
+    SESSION["winrm_attempted_for"] = []
+    SESSION["network_unreachable"] = False
+    SESSION["network_unreachable_hits"] = 0
+    SESSION["start_time"] = datetime.now().isoformat()
+    SESSION["dc_fqdn"] = ""
+    SESSION["dc_hostname"] = ""
+    SESSION["base_dn"] = ""
+    SESSION["krb5_config"] = "/etc/krb5.conf"
+    SESSION["ntlm_disabled"] = False
 
 def _redact_args_for_display(args: dict) -> dict:
     """Display real secrets when enabled, but never present *** as a real value."""
@@ -1697,9 +1708,21 @@ def _analyze_result(tool_name: str, result: str) -> dict:
         "smb request is not supported",
         "80090302",
     ]
-    if any(s in r for s in ntlm_disabled_signals):
+    # Only flag ntlm_disabled if the signal comes from the actual target DC,
+    # not from a random host found during a subnet scan.
+    _dc_ip = SESSION.get("dc_ip", "")
+    _dc_host = str(SESSION.get("dc_hostname") or SESSION.get("dc_fqdn") or "").lower()
+    for _line in result.splitlines():
+        _ll = _line.lower()
+        if not any(s in _ll for s in ntlm_disabled_signals):
+            continue
+        # For line-based signals (ntlm:false), require target DC on same line
+        if "ntlm:false" in _ll or "ntlm:false" in _ll:
+            if _dc_ip and _dc_ip not in _ll and _dc_host and _dc_host not in _ll:
+                continue
         intel["ntlm_disabled"] = True
         SESSION["ntlm_disabled"] = True
+        break
 
     if any(s in r for s in ("8530", "8531", "wsus", "wuserver", "windowsupdate")):
         wsus_hosts = re.findall(r'https?://([A-Za-z0-9_.-]+)(?::853[01])?', result, re.I)
@@ -1729,8 +1752,16 @@ def _analyze_result(tool_name: str, result: str) -> dict:
         if host and host not in intel["winrm_targets"]:
             intel["winrm_targets"].append(host)
 
-    # DA check
-    if "domain admins" in r or "s-1-5-21.*-512" in r:
+    # DA check — require SID (whoami /all) or current user explicitly in DA membership
+    _username_l = SESSION.get("username", "").lower()
+    _da_by_sid = bool(re.search(r's-1-5-21-\d+-\d+-\d+-512', r))
+    _da_by_whoami = (
+        _username_l
+        and _username_l in r
+        and bool(re.search(r'domain\s*admins', r))
+        and bool(re.search(r'enabled\s*group|group_enabled|\(pwn3d\)', r, re.I))
+    )
+    if _da_by_sid or _da_by_whoami:
         intel["is_da"] = True
 
     # NT hashes (secretsdump / certipy auth output)
@@ -1774,19 +1805,21 @@ def _analyze_result(tool_name: str, result: str) -> dict:
     # Machine account SPNs: HOST/, WSMAN/, TERMSRV/, GC/, RestrictedKrbHost/, etc.
     _MACHINE_SPN_PREFIXES = (
         "host/", "wsman/", "termsrv/", "gc/", "restrictedkrbhost/",
-        "dns/", "hyper-v ", "microsoft virtual", "dfsr-", "rpc/",
+        "dns/", "hyper-v", "microsoft virtual", "microsoft ", "dfsr-", "rpc/",
         "ldap/", "e3514235-", "exchangemdb/", "msomsdksvc/",
     )
-    for m in re.finditer(r'servicePrincipalName\s*:\s*(\S+)', result, re.I):
-        spn = m.group(1)
+    for m in re.finditer(r'servicePrincipalName\s*:\s*(.+)', result, re.I):
+        spn = m.group(1).strip()
         spn_l = spn.lower()
-        # Only record SPNs that belong to user/service accounts (not computer accounts)
-        if not any(spn_l.startswith(p) for p in _MACHINE_SPN_PREFIXES):
-            intel["spns"].append(spn)
+        # Skip placeholder "None" and machine account SPNs
+        if spn_l in ("none", "") or any(spn_l.startswith(p) for p in _MACHINE_SPN_PREFIXES):
+            continue
+        intel["spns"].append(spn)
     # from GetUserSPNs output (these are always user/service account SPNs)
+    # hash format: $krb5tgs$23$*username$DOMAIN$spn/host*$...
     for m in re.finditer(r'\$krb5tgs\$(\d+)\$\*([^*]+)\*', result):
-        user = m.group(2).split("@")[0]
-        if user not in intel["spns"]:
+        user = m.group(2).split("$")[0]
+        if user and user not in intel["spns"]:
             intel["spns"].append(user)
 
     # AS-REP roastable
@@ -1869,9 +1902,18 @@ def _analyze_result(tool_name: str, result: str) -> dict:
 
     # gMSA accounts and hashes. Tools vary a lot in formatting, so accept
     # both explicit NT labels and NetExec/gMSADumper hash lines.
+    _GMSA_EXCLUDE = {"krbtgt$", "krb5tgs$", "krb5asrep$", "sntp-ms$"}
     for m in re.finditer(r'\b([A-Za-z0-9_.-]+\$)\b', result):
         acct = m.group(1)
-        if acct.lower() not in {"krbtgt$"} and acct not in intel["gmsa_candidates"]:
+        # Filter false positives: kerberoast tokens, timeroast tokens, all-uppercase
+        # domain names (e.g. DOMAIN$), and 32-char hex hash fragments suffixed with $
+        if acct.lower() in _GMSA_EXCLUDE:
+            continue
+        if re.fullmatch(r'[a-f0-9]{32}\$', acct, re.IGNORECASE):  # hex hash artifact
+            continue
+        if acct == acct.upper():  # all-caps = domain name, not an account
+            continue
+        if acct not in intel["gmsa_candidates"]:
             intel["gmsa_candidates"].append(acct)
 
     for acct, nt in _valid_gmsa_hashes(_extract_gmsa_hashes_from_text(result)).items():
@@ -5960,24 +6002,28 @@ def _derive_scoped_subnet(dc_ip: str) -> str:
 
 
 def _known_winrm_candidate_hosts(dc_ip: str, target_subnet: str = "") -> list:
-    """Return a conservative host scope for WinRM auth testing."""
+    """Return a conservative host scope for WinRM auth testing.
+
+    Only scan specific known hosts by default. Subnet scanning is opt-in via
+    target_subnet or SESSION["target_subnet"] to avoid hitting unrelated machines
+    on shared networks (e.g. HTB where /24 contains other players' boxes).
+    """
     candidates = []
     for value in [
         dc_ip,
         SESSION.get("dc_fqdn", ""),
         SESSION.get("dc_hostname", ""),
-        target_subnet,
-        SESSION.get("target_subnet", ""),
-        SESSION.get("subnet", ""),
     ]:
         value = str(value or "").strip()
         if value and value not in candidates:
             candidates.append(value)
 
-    if not any("/" in c for c in candidates):
-        scoped = _derive_scoped_subnet(dc_ip)
-        if scoped:
-            candidates.append(scoped)
+    # Only add subnet if explicitly requested — never auto-derive /24
+    for value in [target_subnet, SESSION.get("target_subnet", ""), SESSION.get("subnet", "")]:
+        value = str(value or "").strip()
+        if value and "/" in value and value not in candidates:
+            candidates.append(value)
+
     return candidates
 
 
@@ -9752,9 +9798,6 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
     fail_counts:      dict = {}   # tool_name → consecutive failure count
     recent_call_sigs: list = []   # rolling window of (name, args) signatures
     tool_call_counts: dict = {}   # tool_name → total invocations (NOT deduped)
-    # ensure dead-path containers exist on SESSION so _pick_next_tool can read them
-    SESSION.setdefault("winrm_dead_for", [])
-    SESSION.setdefault("network_unreachable", False)
     info(f"Markdown report → {md_path}")
 
     dc_fqdn = _dc_host_for_kerberos(domain, target_ip)
