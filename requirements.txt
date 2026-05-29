@@ -11,6 +11,7 @@ pycryptodome>=3.19.0
 # ── Reporting ─────────────────────────────────────────────────
 jinja2>=3.1.2
 markdown>=3.5.1
+xlsxwriter>=3.2.0
 
 # ── Optional (certipy built-in) ───────────────────────────────
 certipy-ad>=4.8.2
