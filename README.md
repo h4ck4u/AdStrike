@@ -587,6 +587,7 @@ The author accepts no liability for damage, data loss, service disruption, or le
 
 ## Developer
 
-**tmrswrr** - GitHub: [capture0x](https://github.com/capture0x)
+**tmrswrr** - GitHub: [capture0x](https://github.com/capture0x) </br>
+**contact** - Mail : tmrswrr -at- gmail.com
 
 Maintained for authorized offensive security research, lab validation, and professional red team operations.
