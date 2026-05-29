@@ -162,10 +162,14 @@ def _finding_matches_current_target(title: str, detail: str = "") -> bool:
     current_ip = str(SESSION.get("dc_ip", "") or "").strip().lower()
     current_host = str(SESSION.get("hostname", "") or SESSION.get("dc_fqdn", "") or "").strip().lower()
 
-    known_domains = {"pirate.htb", "spookysec.local"}
-    conflicting_domains = [d for d in known_domains if d != current_domain and d in text]
-    if conflicting_domains:
-        return False
+    # Detect any internal domain in the finding text that conflicts with the current target.
+    # Matches *.htb, *.local, *.corp, *.internal, *.lan, *.ad patterns dynamically —
+    # no hardcoded domain names needed.
+    _INTERNAL_TLD = re.compile(r'\b([a-z0-9][a-z0-9_-]*\.(htb|local|corp|internal|lan|ad|home|test|dev|lab|dmz|domain|intranet))\b')
+    if current_domain:
+        for m in _INTERNAL_TLD.finditer(text):
+            if m.group(1) != current_domain:
+                return False
 
     ips = set(re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text))
     if ips and current_ip and current_ip not in ips:
