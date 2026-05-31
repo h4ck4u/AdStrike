@@ -35,6 +35,11 @@ die()  { echo -e "  ${RED}[-]${RST} $* — aborting"; exit 1; }
 
 mkdir -p "$OUTPUT_DIR"
 
+# ── Clean previous session logs ───────────────────────────────────────────────
+# Delete old session_*.log files on each run, keeping only the current run's log
+# (created later by tee). Scoped to session_*.log only — no other files touched.
+rm -f "$OUTPUT_DIR"/session_*.log
+
 # ── Python check ──────────────────────────────────────────────────────────────
 command -v python3 &>/dev/null || die "python3 not found"
 ok "Python $(python3 --version 2>&1 | awk '{print $2}')"
@@ -66,7 +71,12 @@ fi
 echo -e "\n  ${DIM}Log → $LOG_FILE${RST}\n"
 
 cd "$SCRIPT_DIR"
-"$VENV_DIR/bin/python" main.py "$@" 2>&1 | tee -a "$LOG_FILE"
+# Keep ANSI colours on the terminal, but strip them from the saved log so the
+# file is readable in editors. The sed filter first collapses carriage-return
+# redraws (spinners/progress bars) to their final state, then removes all
+# terminal escape sequences before appending to the log.
+"$VENV_DIR/bin/python" main.py "$@" 2>&1 \
+    | tee >(sed -u 's/.*\r//; s/\x1b\[[0-9;?]*[a-zA-Z]//g' >> "$LOG_FILE")
 EXIT_CODE=${PIPESTATUS[0]}
 
 echo
