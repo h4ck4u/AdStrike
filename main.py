@@ -28,7 +28,10 @@ from utils.helpers import (
     success, warn, info, error, prompt, pause, cprint,
     print_banner, print_table, spinner,
 )
-from config.settings import SESSION, CONFIG, save_session, load_session, get_auth_mode, redact_obj
+from config.settings import (
+    SESSION, CONFIG, save_session, load_session, get_auth_mode, redact_obj,
+    reset_engagement_state, reset_session_for_target_change,
+)
 
 VERSION  = "5.0"
 CODENAME = "AdStrike"
@@ -39,12 +42,13 @@ BUILD    = "2026.04"
 #  BANNER  —  AdStrike red × blue professional aesthetic
 # ══════════════════════════════════════════════════════════════════════════════
 _ART = r"""
-     ___       __   _____ __       _ __       
-    /   | ____/ /  / ___// /______(_) /_____ 
-   / /| |/ __  /   \__ \/ __/ ___/ / //_/ _ \
-  / ___ / /_/ /   ___/ / /_/ /  / / ,< /  __/
- /_/  |_\__,_/   /____/\__/_/  /_/_/|_|\___/ 
-"""
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯"""
 
 # ── Colour palette — AdStrike red / blue / white ─────────────────────────────
 _C1    = BABY_BLUE    # legacy blue primary accent / phase labels
@@ -630,7 +634,8 @@ def session_setup(announce_loaded: bool = True):
     hint = f"{DIM}[{current_ip}]{RST}" if current_ip else ""
     ip_val = input(f"  {LIGHT_PINK}[?]{RST} {'DC IP Address':<30} {hint}: ").strip()
     if ip_val:
-        SESSION["dc_ip"] = ip_val
+        if reset_session_for_target_change(dc_ip=ip_val):
+            warn("Target changed — cleared prior engagement state (Kerberos, loot, owned hosts, findings).")
     elif current_ip:
         ip_val = current_ip
 
@@ -689,7 +694,11 @@ def session_setup(announce_loaded: bool = True):
             hint = f"{DIM}[{disp}]{RST}" if current else ""
         val = input(f"  {LIGHT_PINK}[?]{RST} {label:<30} {hint}: ").strip()
         if val:
-            SESSION[key] = val
+            if key == "domain":
+                if reset_session_for_target_change(domain=val):
+                    warn("Domain changed — cleared prior engagement state (Kerberos, loot, owned hosts, findings).")
+            else:
+                SESSION[key] = val
 
     success("Session configured!")
     save_session()
@@ -843,12 +852,10 @@ def session_manager():
         else:
             error("File not found")
     elif c == "4":
+        reset_engagement_state()
         for k in ["dc_ip", "domain", "username", "password",
-                  "nt_hash", "dc_fqdn", "hostname", "base_dn",
-                  "attacker_ip", "attacker_iface"]:
+                  "nt_hash", "attacker_ip", "attacker_iface"]:
             SESSION[k] = ""
-        SESSION["use_kerberos"] = False
-        SESSION["krb5_ccache"]  = ""
         success("Session cleared")
     input(f"\n  {M}[Enter]{RST} to return...")
 
