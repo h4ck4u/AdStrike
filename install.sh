@@ -16,7 +16,7 @@ VENV_DIR="${ADSTRIKE_VENV_DIR:-$SCRIPT_DIR/venv}"
 REQ_FILE="$SCRIPT_DIR/requirements.txt"
 TOOLS_DIR="$SCRIPT_DIR/tools"
 BIN_DIR="$TOOLS_DIR/bin"
-LOCAL_TOOLS_SOURCE="${ADSTRIKE_LOCAL_TOOLS_SOURCE:-$HOME/Desktop/ADRedTeam/tools}"
+LOCAL_TOOLS_SOURCE="${ADSTRIKE_LOCAL_TOOLS_SOURCE:-$SCRIPT_DIR/tools}"
 export PATH="$BIN_DIR:$PATH"
 
 banner() {
@@ -65,6 +65,8 @@ copy_local_tool_dir() {
     local dest="$TOOLS_DIR/$name"
 
     [[ -d "$src" ]] || return 0
+    # Kaynak ile hedef aynı dizinse (repo-içi tools) kopyalamaya gerek yok
+    [[ "$src" -ef "$dest" ]] && { ok "$name already present (repo-local)"; return 0; }
     if [[ -e "$dest" ]]; then
         cp -an "$src/." "$dest/" 2>/dev/null \
             && ok "$name already present; missing local files synced" \
@@ -83,6 +85,7 @@ copy_local_bin_tool() {
     local dest="$BIN_DIR/$name"
 
     [[ -f "$src" ]] || return 0
+    [[ "$src" -ef "$dest" ]] && { ok "tools/bin/$name already present (repo-local)"; return 0; }
     if [[ -e "$dest" || -L "$dest" ]]; then
         ok "tools/bin/$name already present"
         return 0
@@ -203,6 +206,54 @@ done
 "${PIP_CMD[@]}" install -q --no-deps coercer 2>/dev/null && ok "coercer (no-deps)" \
     || warn "coercer failed — may already be installed system-wide"
 
+# GitHub-only tools — pre2k and sccmhunter are NOT published to PyPI and pin very
+# old deps (impacket==0.10.0, rich==12.5.1, typer<0.7 ...). Installing them into the
+# main venv triggers pip dependency-resolver conflicts and can break AdStrike's
+# modern impacket/rich/typer. So install them in ISOLATED pipx environments instead;
+# their console entrypoints land on PATH (~/.local/bin) and shutil.which() finds them.
+step "Installing GitHub-only tools (pre2k, sccmhunter) via pipx (isolated)"
+
+# Resolve a usable pipx invocation: prefer system pipx, else python3 -m pipx,
+# else bootstrap pipx into the venv (it still isolates each app in its own venv).
+PIPX_CMD=()
+if command -v pipx >/dev/null 2>&1; then
+    PIPX_CMD=(pipx)
+elif python3 -m pipx --version >/dev/null 2>&1; then
+    PIPX_CMD=(python3 -m pipx)
+else
+    warn "pipx not found — bootstrapping it"
+    if "${PIP_CMD[@]}" install -q pipx 2>/dev/null; then
+        PIPX_CMD=("$VENV_PY" -m pipx)
+    else
+        warn "pipx bootstrap failed — falling back to plain git install (may cause dep conflicts)"
+    fi
+fi
+
+if [[ ${#PIPX_CMD[@]} -gt 0 ]]; then
+    # Make sure ~/.local/bin (pipx default bin dir) is on PATH now and in future shells
+    "${PIPX_CMD[@]}" ensurepath >/dev/null 2>&1 || true
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+for spec in "pre2k=https://github.com/garrettfoster13/pre2k" \
+            "sccmhunter=https://github.com/garrettfoster13/sccmhunter"; do
+    name="${spec%%=*}"; url="${spec#*=}"
+    if [[ ${#PIPX_CMD[@]} -gt 0 ]]; then
+        if "${PIPX_CMD[@]}" install --force "git+${url}" >/dev/null 2>&1; then
+            ok "$name (isolated pipx env)"
+        else
+            warn "$name pipx install failed — trying plain git install"
+            "${PIP_CMD[@]}" install -q "git+${url}" 2>/dev/null \
+                && ok "$name (from git, shared venv)" \
+                || warn "$name install failed — clone manually: git clone ${url}"
+        fi
+    else
+        "${PIP_CMD[@]}" install -q "git+${url}" 2>/dev/null \
+            && ok "$name (from git, shared venv)" \
+            || warn "$name install failed — clone manually: git clone ${url}"
+    fi
+done
+
 # Re-pin impacket after all tools are installed. Some tools (coercer) declare
 # outdated impacket pins that would downgrade it and break certipy shadow_credentials.
 step "Re-pinning impacket>=0.13.0 (ensures shadow_credentials support)"
@@ -296,9 +347,39 @@ step "Checking kerbrute"
 if command -v kerbrute &>/dev/null; then
     ok "kerbrute found in PATH"
 else
-    warn "kerbrute not found — install manually:"
-    echo -e "  ${DIM}https://github.com/ropnop/kerbrute/releases${RST}"
-    echo -e "  ${DIM}sudo install -m 755 kerbrute_linux_amd64 /usr/local/bin/kerbrute${RST}"
+    warn "kerbrute not found — downloading latest release binary"
+    case "$(uname -m)" in
+        x86_64|amd64) KB_ARCH="amd64" ;;
+        aarch64|arm64) KB_ARCH="arm64" ;;
+        *) KB_ARCH="" ;;
+    esac
+    if [[ -z "$KB_ARCH" ]]; then
+        warn "kerbrute: unsupported arch $(uname -m) — install manually from https://github.com/ropnop/kerbrute/releases"
+    else
+        KB_URL="https://github.com/ropnop/kerbrute/releases/latest/download/kerbrute_linux_${KB_ARCH}"
+        KB_TMP="$(mktemp)"
+        if curl -fsSL "$KB_URL" -o "$KB_TMP" 2>/dev/null && [[ -s "$KB_TMP" ]]; then
+            sudo install -m 755 "$KB_TMP" /usr/local/bin/kerbrute \
+                && ok "kerbrute installed to /usr/local/bin/kerbrute" \
+                || warn "kerbrute install failed — copy $KB_TMP to /usr/local/bin/kerbrute manually"
+        else
+            warn "kerbrute download failed — install manually:"
+            echo -e "  ${DIM}https://github.com/ropnop/kerbrute/releases${RST}"
+        fi
+        rm -f "$KB_TMP" 2>/dev/null || true
+    fi
+fi
+
+# ── cypher-shell (optional — for BloodHound auto-queries) ─────────────────────
+# Only the lightweight cypher-shell CLI is attempted, NOT the full neo4j stack.
+# If unavailable, AdStrike still exports BloodHound JSON for manual GUI import.
+step "Checking cypher-shell (optional)"
+if command -v cypher-shell &>/dev/null; then
+    ok "cypher-shell found in PATH"
+else
+    sudo apt-get install -y -qq cypher-shell 2>/dev/null \
+        && ok "cypher-shell installed" \
+        || warn "cypher-shell not available — optional; BloodHound JSON is still exported for manual GUI import"
 fi
 
 # ── .env setup ────────────────────────────────────────────────────────────────
