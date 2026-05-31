@@ -4932,7 +4932,7 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
                         f"Not flagging shell-ready."
                     )
 
-        if "ESC1" in scan_out:
+        if re.search(r"ESC1\b", scan_out):
             tpl, ca = _pick_template_ca_for_esc(scan_out, "1")
             if tpl and ca:
                 auth_out = _certipy_req_auth(tpl, ca, f"administrator@{domain}", "administrator")
