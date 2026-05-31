@@ -35,10 +35,10 @@ die()  { echo -e "  ${RED}[-]${RST} $* — aborting"; exit 1; }
 
 mkdir -p "$OUTPUT_DIR"
 
-# ── Clean previous session logs ───────────────────────────────────────────────
-# Delete old session_*.log files on each run, keeping only the current run's log
-# (created later by tee). Scoped to session_*.log only — no other files touched.
-rm -f "$OUTPUT_DIR"/session_*.log
+# ── Preserve previous session logs ────────────────────────────────────────────
+# Session logs are kept across runs so earlier engagements (e.g. a different HTB
+# target) stay available. Each run writes its own timestamped session_*.log; old
+# ones are NOT deleted. Remove them manually if output/ grows too large.
 
 # ── Python check ──────────────────────────────────────────────────────────────
 command -v python3 &>/dev/null || die "python3 not found"
