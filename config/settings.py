@@ -216,6 +216,73 @@ def _refresh_derived():
 
 _refresh_derived()
 
+PER_ENGAGEMENT_DEFAULTS = {
+    "commands_run": [],
+    "findings": [],
+    "owned_users": [],
+    "owned_machines": [],
+    "loot": {},
+    "agent_intel": {},
+    "winrm_dead_for": [],
+    "winrm_attempted_for": [],
+    "network_unreachable": False,
+    "network_unreachable_hits": 0,
+    "ntlm_disabled": False,
+    "ntlm_disabled_hint": False,
+    "use_kerberos": False,
+    "krb5_ccache": "",
+    "krb5_config": _ENV.get("KRB5_CONFIG", "/etc/krb5.conf"),
+    "dc_fqdn": "",
+    "hostname": "",
+    "dc_hostname": "",
+    "base_dn": "",
+}
+
+def _norm_target(value: str, *, domain: bool = False) -> str:
+    value = str(value or "").strip()
+    return value.lower().rstrip(".") if domain else value
+
+def target_changed(dc_ip: str = "", domain: str = "") -> bool:
+    """Return True when a non-empty target field differs from the loaded session."""
+    old_dc = _norm_target(SESSION.get("dc_ip", ""))
+    old_dom = _norm_target(SESSION.get("domain", ""), domain=True)
+    new_dc = _norm_target(dc_ip)
+    new_dom = _norm_target(domain, domain=True)
+    return bool(
+        (old_dc and new_dc and old_dc != new_dc)
+        or (old_dom and new_dom and old_dom != new_dom)
+    )
+
+def reset_engagement_state() -> None:
+    """Clear state that belongs to one target/domain and must not cross engagements."""
+    for key, default in PER_ENGAGEMENT_DEFAULTS.items():
+        if isinstance(default, dict):
+            SESSION[key] = dict(default)
+        elif isinstance(default, list):
+            SESSION[key] = list(default)
+        else:
+            SESSION[key] = default
+    SESSION["start_time"] = datetime.now().isoformat()
+    os.environ.pop("KRB5CCNAME", None)
+    os.environ.pop("KRB5_CONFIG", None)
+    # NOTE: deliberately does NOT delete *.pfx/*.ccache on disk — those are
+    # loot/evidence. Cross-engagement cert leakage is prevented at the decision
+    # layer instead: the rule engine scopes leftover PFX to the current domain
+    # via _pfx_cert_domain(), and adcs_scan runs regardless of an existing hash.
+    _refresh_derived()
+
+def reset_session_for_target_change(dc_ip: str = "", domain: str = "") -> bool:
+    """Reset per-engagement state before switching to a different target/domain."""
+    changed = target_changed(dc_ip=dc_ip, domain=domain)
+    if changed:
+        reset_engagement_state()
+    if dc_ip:
+        SESSION["dc_ip"] = str(dc_ip).strip()
+    if domain:
+        SESSION["domain"] = str(domain).strip()
+    _refresh_derived()
+    return changed
+
 # ══════════════════════════════════════════════════════════════════════════════
 # KERBEROS FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════
