@@ -833,15 +833,22 @@ def _build_markdown(
         score = cvss.get("score", 0.0)
         vec   = cvss.get("vector", "")
         mids  = f.get("mitre_ids", [])
+        _proof = str(f.get("proof_level", "observed"))
+        _cmd   = str(f.get("command", "")).strip()
         lines += [
             f"### {f.get('id','')}. {f.get('name','')}",
             "",
             f"**Severity:** {sev}  ",
+            f"**Proof:** {_proof}  ",
             f"**CVSS v3.1:** {score:.1f} — `{vec}`  ",
             f"**MITRE ATT&CK:** {', '.join(mids) if mids else '—'}",
             "",
             f"**Description:** {redact_text(str(f.get('description','')))}",
             "",
+        ]
+        if _cmd:
+            lines += [f"**Evidence (command):** `{redact_text(_cmd)}`", ""]
+        lines += [
             f"**Recommendation:** {redact_text(str(f.get('recommendation','')))}",
             "",
         ]
