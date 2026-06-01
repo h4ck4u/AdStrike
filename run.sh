@@ -36,7 +36,7 @@ die()  { echo -e "  ${RED}[-]${RST} $* — aborting"; exit 1; }
 mkdir -p "$OUTPUT_DIR"
 
 # ── Preserve previous session logs ────────────────────────────────────────────
-# Session logs are kept across runs so earlier engagements (e.g. a different HTB
+# Session logs are kept across runs so earlier engagements (e.g. a different
 # target) stay available. Each run writes its own timestamped session_*.log; old
 # ones are NOT deleted. Remove them manually if output/ grows too large.
 
