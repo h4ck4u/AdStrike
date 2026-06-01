@@ -39,7 +39,11 @@ AGENT_LIVE_COMMANDS = os.environ.get(
 
 # ── Ollama settings ───────────────────────────────────────────────────────────
 OLLAMA_API_TIMEOUT = int(os.environ.get("ADSTRIKE_OLLAMA_TIMEOUT", "20"))
-OLLAMA_MAX_TOOLS   = max(1, int(os.environ.get("ADSTRIKE_OLLAMA_MAX_TOOLS", "1")))
+# Default 2: present the local model an evidence-labeled menu of the top-N
+# candidate actions so it actually REASONS and picks by impact, instead of
+# rubber-stamping a single rule-engine choice. Set ADSTRIKE_OLLAMA_MAX_TOOLS=1
+# for the old deterministic (rule-engine-only) behavior on very weak models.
+OLLAMA_MAX_TOOLS   = max(1, int(os.environ.get("ADSTRIKE_OLLAMA_MAX_TOOLS", "2")))
 OLLAMA_SHOW_FALLBACK_WARNINGS = os.environ.get(
     "ADSTRIKE_OLLAMA_SHOW_FALLBACK_WARNINGS", "false"
 ).lower() in ("1", "true", "yes", "on")
