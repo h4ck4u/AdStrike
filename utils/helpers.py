@@ -316,8 +316,24 @@ def save_result(data, filename, subdir=""):
     success(f"Saved → {NEON_CYN}{path}{RST}")
     return path
 
-def add_finding(name, severity, description, recommendation, evidence=""):
+# Evidence-grade proof levels (ordered weakest → strongest). A finding's
+# proof_level states how strongly it was established, so a report can separate
+# "we saw a service" from "we exploited it and own the host".
+PROOF_LEVELS = ("observed", "validated", "exploitable", "exploited", "owned")
+
+
+def add_finding(name, severity, description, recommendation, evidence="",
+                proof_level="observed", command=""):
+    """Record a finding.
+
+    New (additive, optional) evidence-grade fields — existing callers are
+    unaffected since these default:
+      proof_level: how strongly it was established (see PROOF_LEVELS).
+      command:     the exact command/tool invocation that produced the evidence.
+    """
     from config.settings import SESSION
+    if proof_level not in PROOF_LEVELS:
+        proof_level = "observed"
     key = (
         str(name).strip().lower(),
         str(severity).strip().lower(),
@@ -332,6 +348,17 @@ def add_finding(name, severity, description, recommendation, evidence=""):
             str(existing.get("recommendation", "")).strip().lower(),
         )
         if existing_key == key:
+            # Keep the STRONGEST proof level / fill missing evidence on a repeat.
+            try:
+                if PROOF_LEVELS.index(proof_level) > PROOF_LEVELS.index(
+                        existing.get("proof_level", "observed")):
+                    existing["proof_level"] = proof_level
+            except ValueError:
+                pass
+            if command and not existing.get("command"):
+                existing["command"] = command
+            if evidence and not existing.get("evidence"):
+                existing["evidence"] = evidence
             debug(f"Duplicate finding skipped: {name}")
             return existing
 
@@ -342,10 +369,13 @@ def add_finding(name, severity, description, recommendation, evidence=""):
         "description": description,
         "recommendation": recommendation,
         "evidence": evidence,
+        "proof_level": proof_level,
+        "command": command,
         "timestamp": str(datetime.datetime.now()),
     })
     color = SEV_COLOR.get(severity, W)
-    print(f"  {color}[FINDING] [{severity:<8}]{RST} {BOLD}{name}{RST}")
+    _pl = f" {DIM}({proof_level}){RST}" if proof_level != "observed" else ""
+    print(f"  {color}[FINDING] [{severity:<8}]{RST} {BOLD}{name}{RST}{_pl}")
     return SESSION["findings"][-1]
 
 def dedupe_findings(findings=None):
