@@ -117,7 +117,14 @@ def _set_engagement(args: dict) -> str:
     # Switching target/domain must not carry the previous engagement's loot,
     # findings, agent_intel, Kerberos ccache, or base_dn forward. This sets the
     # new dc_ip + domain and wipes per-engagement state when they changed.
+    prev_username = str(SESSION.get("username", "")).strip()
     changed = reset_session_for_target_change(dc_ip=dc_ip, domain=domain)
+    # A credential belongs to one principal. If the identity changes — different
+    # target OR different username — a credential from the old principal must not
+    # ride along to the new one.
+    identity_changed = changed or (
+        bool(prev_username) and username.lower() != prev_username.lower()
+    )
 
     SESSION["username"] = username
     if dc_fqdn:
@@ -125,13 +132,14 @@ def _set_engagement(args: dict) -> str:
 
     # Enforce the XOR on stored state too: exactly one credential survives, so a
     # password from a previous engagement can't linger behind a new nt_hash (or
-    # vice versa). On a target change with no creds given, both are cleared so
-    # the new target starts from a clean no-cred footing.
+    # vice versa). When the identity changes and no credential is supplied, clear
+    # both so the new principal starts from a clean no-cred footing instead of
+    # inheriting the previous user's secret.
     if password:
         SESSION["password"], SESSION["nt_hash"] = password, ""
     elif nt_hash:
         SESSION["password"], SESSION["nt_hash"] = "", nt_hash
-    elif changed:
+    elif identity_changed:
         SESSION["password"], SESSION["nt_hash"] = "", ""
 
     # Rebuild domain_user / upn / base_dn now that domain AND username are set
@@ -146,7 +154,12 @@ def _set_engagement(args: dict) -> str:
 
     ident = f"{SESSION.get('username', '?')}@{SESSION.get('domain', '?')} → {SESSION.get('dc_ip', '?')}"
     auth = "password" if SESSION.get("password") else ("nt_hash" if SESSION.get("nt_hash") else "none")
-    note = " stale engagement state cleared;" if changed else ""
+    if changed:
+        note = " stale engagement state cleared;"
+    elif identity_changed and auth == "none":
+        note = " previous user's credential cleared (new user, none supplied);"
+    else:
+        note = ""
     return f"Engagement set: {ident} (auth={auth}).{note} Run nmap_scan / enumerate_ldap next."
 
 
