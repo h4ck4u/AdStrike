@@ -10,10 +10,11 @@ Scope: AdStrike framework, shared session model, module map, AI Agent internals,
 
 AdStrike is a terminal-based Active Directory attack framework for authorised security testing. It wraps common AD offensive workflows into a shared session model so operators can move from discovery to exploitation without manually copying credentials, hashes, tickets, target data, and findings between tools.
 
-The framework has two operating modes:
+The framework has three operating modes:
 
 - Interactive modules: the operator chooses a numbered module from the menu and drives the workflow manually.
-- AdStrike Agent: an AI-assisted orchestrator that chooses and chains framework tools based on current evidence.
+- AdStrike Agent: an AI-assisted orchestrator that chooses and chains framework tools based on current evidence (Ollama local model, or Claude via `ANTHROPIC_API_KEY`).
+- MCP server (no API key): AdStrike runs no LLM of its own and instead exposes its tools over the Model Context Protocol, so an MCP host you already use (Claude Code, Cursor, Claude Desktop) drives the engagement with its own subscription. See section 30. Full walkthrough: [docs/mcp.md](mcp.md).
 
 The tool is designed for lab and engagement work where many target environments differ. It should not assume one specific machine, one specific domain, one hard-coded gMSA name, or one fixed exploitation chain. Instead it tracks evidence, validates prerequisites, and pivots when a path fails.
 
@@ -813,7 +814,100 @@ After the run:
 - DCSync and DCShadow are high-impact and should be used only with explicit approval.
 - Always prefer read-only enumeration until a path is confirmed and authorised.
 
-## 30. Summary
+## 30. MCP Server (No API Key)
+
+AdStrike ships an MCP server (`mcp_server.py`) that exposes its tools over the
+[Model Context Protocol](https://modelcontextprotocol.io). On this path AdStrike
+runs **no LLM of its own**: there is **no Ollama and no `ANTHROPIC_API_KEY`**. An
+MCP host you already use — Claude Code, Cursor, Claude Desktop — connects to the
+server, and that host's LLM drives the engagement with its own subscription. The
+host is the brain; AdStrike is the toolbox.
+
+### What it exposes
+
+All **53 tools** are published: the **52 attack tools** from section 10 plus a
+`set_engagement` tool. The 52 attack tools reuse the exact schemas from
+`modules/agent/_core.py` (`TOOLS` / `TOOL_MAP`) — one source of truth, no
+duplication with the standalone agent.
+
+This path does **not** start the agent loop described in sections 8–21. It never
+imports `modules/agent/backends.py` (Ollama/Claude adapters); it only imports the
+tool layer. The standalone `python3 main.py` agent (Ollama/Claude) is unchanged
+and still available.
+
+### How credentials flow
+
+The host LLM supplies only tool-specific arguments. The operator (or the host)
+calls `set_engagement` **once** with the authoritative target and credentials:
+
+| Field | Required | Notes |
+|---|---|---|
+| `dc_ip` | yes | Domain Controller IP |
+| `domain` | yes | AD domain FQDN, e.g. `corp.local` |
+| `username` | yes | Authenticating user (sAMAccountName) |
+| `password` | one of | Omit if using `nt_hash` |
+| `nt_hash` | one of | Omit if using `password` |
+| `dc_fqdn` | optional | DC FQDN, e.g. `dc1.corp.local` |
+
+`set_engagement` writes these into `SESSION` and persists with `save_session()`.
+From then on, `_sanitize_tool_inputs()` (the same authority used by the standalone
+agent, section 11) **injects the session target and credentials into every later
+tool call**. The host LLM never has to repeat the password and cannot accidentally
+target the wrong host or account.
+
+### Protocol hygiene
+
+AdStrike tool code prints colourful status to stdout, but an MCP stdio server
+speaks JSON-RPC over stdout — any stray byte corrupts the protocol. `mcp_server.py`
+redirects import-time chatter to stderr, then at runtime routes every `print()` to
+stderr, so **stdout carries only JSON-RPC** and tool status appears as host server
+logs. The server also `chdir`s to the repo root on start, so loot and runtime files
+land in `output/` as usual no matter where the host launches it. Each tool call
+shells out and runs blocking, so it is offloaded to a worker thread to keep the
+event loop responsive.
+
+### Registering the server
+
+Use absolute paths to the venv interpreter and `mcp_server.py`.
+
+Verify it loads:
+
+```bash
+./venv/bin/python3 -c "import mcp; from modules.agent._core import TOOLS, TOOL_MAP; \
+print('ok', sum(1 for t in TOOLS if t['name'] in TOOL_MAP), '+ set_engagement = 53')"
+```
+
+Claude Code, Cursor, and Claude Desktop all use the same `command` + `args` shape
+in their MCP config:
+
+```json
+{
+  "mcpServers": {
+    "adstrike": {
+      "command": "/path/to/AdStrike/venv/bin/python3",
+      "args": ["/path/to/AdStrike/mcp_server.py"]
+    }
+  }
+}
+```
+
+Claude Code also supports a CLI shortcut:
+
+```bash
+claude mcp add adstrike -- /path/to/AdStrike/venv/bin/python3 /path/to/AdStrike/mcp_server.py
+```
+
+### Typical flow
+
+1. Ask the host to `set_engagement` with the target and credentials.
+2. Let the host drive — it reads each tool's output and picks the next tool
+   (nmap → LDAP enum → BloodHound → matching abuse primitive), the same shape as
+   the built-in agent loop, but funded by the host subscription.
+
+The per-host config details, full tool catalogue grouped by phase, and OPSEC notes
+live in [docs/mcp.md](mcp.md).
+
+## 31. Summary
 
 AdStrike is a broad AD testing framework with an AI orchestration layer. The core strength is the shared session model: credentials, Kerberos tickets, findings, loot, and owned assets flow between modules. The Agent builds on that by extracting structured intel and selecting next actions.
 
