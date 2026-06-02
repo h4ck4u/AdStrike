@@ -449,26 +449,30 @@ All **53 tools** are published — the 52 attack tools (`nmap_scan`, `enumerate_
 `set_engagement` — using the exact same schemas the standalone agent uses
 (`modules/agent/_core.py`), so there is one source of truth and no duplication.
 
+![AdStrike MCP server demo](assets/mcp-demo.gif)
+
 **1. Verify the server can load** (uses the project venv):
 
 ```bash
 ./venv/bin/python3 -c "import mcp; from modules.agent._core import TOOLS; print('ok', len(TOOLS))"
 ```
 
-**2. Register in Claude Code** — project file `.mcp.json`:
+**2. Register in Claude Code.** The repo already ships a project `.mcp.json` with
+repo-relative paths, so if you start Claude Code from the AdStrike folder (step 3)
+**you can skip this step** — it is picked up automatically:
 
 ```json
 {
   "mcpServers": {
     "adstrike": {
-      "command": "/path/to/AdStrike/venv/bin/python3",
-      "args": ["/path/to/AdStrike/mcp_server.py"]
+      "command": "venv/bin/python3",
+      "args": ["mcp_server.py"]
     }
   }
 }
 ```
 
-or via CLI:
+To register it globally (so it works from any directory) use absolute paths via CLI:
 
 ```bash
 claude mcp add adstrike -- /path/to/AdStrike/venv/bin/python3 /path/to/AdStrike/mcp_server.py
@@ -498,6 +502,35 @@ accidentally target the wrong host or account. From there the host reads each
 tool's output and picks the next tool — nmap → LDAP enum → BloodHound → the
 matching abuse primitive — just like the built-in agent loop, but funded by the
 host subscription.
+
+**Example prompt** — paste this into Claude Code (adjust the target) to set the
+engagement once and have the host drive the standard AdStrike workflow:
+
+```text
+Use the adstrike MCP server. Call set_engagement with dc_ip 192.168.56.1,
+domain corp.local, username tester, password 'Pass123!'.
+
+Then run the same workflow as the AdStrike agent:
+  1. nmap_scan
+  2. no_cred_surface_recon
+  3. enumerate_ldap
+  4. enumerate_shares
+  5. collect_bloodhound
+  6. query_bloodhound_paths
+  7. adcs_scan
+  8. acl_abuse_scan
+  9. kerberoast
+  10. asrep_roast
+  11. discover_winrm_access
+  12. chain_planner
+
+After each tool result, analyze the output and choose the next best AdStrike
+MCP tool. Do not ask me for the password again — use the session credential
+injected by set_engagement.
+```
+
+You only pass the credential inside `set_engagement`; every later tool reuses the
+session value, so the host never needs it again.
 
 Full walkthrough (requirements, config for each host, OPSEC notes):
 **[docs/mcp.md](docs/mcp.md)**.
