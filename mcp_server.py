@@ -41,6 +41,12 @@ with contextlib.redirect_stdout(sys.stderr):
         SESSION,
         save_session,
     )
+    # Same SESSION dict the tools mutate. These keep set_engagement honest when
+    # the host switches targets mid-session: reset_session_for_target_change wipes
+    # per-engagement state (loot, findings, agent_intel, Kerberos ccache, base_dn,
+    # …) when the target/domain changes; _refresh_derived rebuilds domain_user /
+    # upn / base_dn from the new domain+username.
+    from config.settings import reset_session_for_target_change, _refresh_derived
 
 import anyio
 from mcp.server import Server
@@ -89,15 +95,59 @@ async def _list_tools():
 
 
 def _set_engagement(args: dict) -> str:
-    for k in ("dc_ip", "domain", "username", "password", "nt_hash", "dc_fqdn"):
-        v = args.get(k)
-        if v:
-            SESSION[k] = v
+    dc_ip    = str(args.get("dc_ip") or "").strip()
+    domain   = str(args.get("domain") or "").strip()
+    username = str(args.get("username") or "").strip()
+    password = args.get("password") or ""
+    nt_hash  = args.get("nt_hash") or ""
+    dc_fqdn  = str(args.get("dc_fqdn") or "").strip()
+
+    # validate_input=False means the protocol layer won't enforce the schema for
+    # us, so guard required fields + the password/nt_hash XOR here. Reject and
+    # leave the session untouched rather than silently leaning on stale state.
+    missing = [k for k, v in (("dc_ip", dc_ip), ("domain", domain),
+                              ("username", username)) if not v]
+    if missing:
+        return ("set_engagement rejected: missing required field(s): "
+                f"{', '.join(missing)}. Session unchanged.")
+    if password and nt_hash:
+        return ("set_engagement rejected: provide password OR nt_hash, not both. "
+                "Session unchanged.")
+
+    # Switching target/domain must not carry the previous engagement's loot,
+    # findings, agent_intel, Kerberos ccache, or base_dn forward. This sets the
+    # new dc_ip + domain and wipes per-engagement state when they changed.
+    changed = reset_session_for_target_change(dc_ip=dc_ip, domain=domain)
+
+    SESSION["username"] = username
+    if dc_fqdn:
+        SESSION["dc_fqdn"] = dc_fqdn
+
+    # Enforce the XOR on stored state too: exactly one credential survives, so a
+    # password from a previous engagement can't linger behind a new nt_hash (or
+    # vice versa). On a target change with no creds given, both are cleared so
+    # the new target starts from a clean no-cred footing.
+    if password:
+        SESSION["password"], SESSION["nt_hash"] = password, ""
+    elif nt_hash:
+        SESSION["password"], SESSION["nt_hash"] = "", nt_hash
+    elif changed:
+        SESSION["password"], SESSION["nt_hash"] = "", ""
+
+    # Rebuild domain_user / upn / base_dn now that domain AND username are set
+    # (reset_session_for_target_change refreshed before username was applied).
+    # _refresh_derived only fills base_dn when it's empty, and the reset path can
+    # leave a previous domain's base_dn behind — clear it so it re-derives from
+    # the current domain.
+    SESSION["base_dn"] = ""
+    _refresh_derived()
     with contextlib.suppress(Exception):
         save_session()
+
     ident = f"{SESSION.get('username', '?')}@{SESSION.get('domain', '?')} → {SESSION.get('dc_ip', '?')}"
     auth = "password" if SESSION.get("password") else ("nt_hash" if SESSION.get("nt_hash") else "none")
-    return f"Engagement set: {ident} (auth={auth}). Run nmap_scan / enumerate_ldap next."
+    note = " stale engagement state cleared;" if changed else ""
+    return f"Engagement set: {ident} (auth={auth}).{note} Run nmap_scan / enumerate_ldap next."
 
 
 # validate_input=False: AdStrike's own _sanitize_tool_inputs (inside dispatch_tool)
