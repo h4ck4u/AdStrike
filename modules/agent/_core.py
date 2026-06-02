@@ -359,6 +359,29 @@ def _session_kerberos_usable(username: str = "", domain: str = "") -> bool:
         SESSION["krb5_ccache"] = ""
     return ok
 
+def _add_owned_machine(machine, **attrs) -> None:
+    """Record an owned host, deduped by machine identity (target-agnostic).
+
+    Several tools (evil_winrm, lateral_movement, discover_winrm_access,
+    shadow_credentials, ...) can each pwn the SAME host, every time with a
+    slightly different dict (method/time/user). Appending blindly inflated the
+    list — and the report's machine count — with duplicate entries for one box.
+    Dedup on the normalized 'machine' value; if it already exists, merge in any
+    new non-empty attributes (e.g. fill nt_hash/method) instead of appending a
+    copy."""
+    machine = str(machine or "").strip()
+    if not machine:
+        return
+    bucket = SESSION.setdefault("owned_machines", [])
+    key = machine.lower()
+    for entry in bucket:
+        if str(entry.get("machine", "")).strip().lower() == key:
+            for k, v in attrs.items():
+                if v and not entry.get(k):
+                    entry[k] = v
+            return
+    bucket.append({"machine": machine, **attrs})
+
 BAD_AD_TARGETS = {
     "", "none", "null", "undefined", "found", "target", "user", "computer",
     "account", "unknown", "all", "true", "false", "guest", "krbtgt",
@@ -5901,11 +5924,10 @@ def tool_auto_loot_chain(dc_ip: str, domain: str, username: str, password: str) 
                                         if "Pwn3d" in winrm_out:
                                             out_parts.append(f"WinRM Pwn3d! → {sam}")
                                             out_parts.append(f"evil-winrm -i {dc_ip} -u '{sam}' -H '{nt_hash}'")
-                                            SESSION["owned_machines"].append(
-                                                {"machine": dc_ip, "user": sam,
-                                                 "nt_hash": nt_hash,
-                                                 "method": "Shadow Creds → WinRM",
-                                                 "time": datetime.now().isoformat()})
+                                            _add_owned_machine(
+                                                dc_ip, user=sam, nt_hash=nt_hash,
+                                                method="Shadow Creds → WinRM",
+                                                time=datetime.now().isoformat())
 
     return "\n".join(out_parts) if out_parts else "Auto chain: no credentials or paths found."
 
@@ -5988,9 +6010,8 @@ def tool_lateral_movement(target_ip: str, domain: str, username: str,
         add_finding("Remote Command Execution — WinRM", "Critical",
                     f"Command execution on {host} as {domain}\\{username}: {command[:60]}",
                     "Restrict WinRM access; enable JEA; monitor PSRemoting")
-        SESSION["owned_machines"].append(
-            {"machine": host, "user": username, "method": "WinRM",
-             "time": datetime.now().isoformat()})
+        _add_owned_machine(host, user=username, method="WinRM",
+                           time=datetime.now().isoformat())
         save_session()
         return f"WinRM [{host}] as {username}:\nCommand: {command}\n{cmd_out[:3000]}"
 
@@ -6326,10 +6347,9 @@ def tool_discover_winrm_access(dc_ip: str, domain: str, username: str,
             for host in hosts or [target]:
                 if host not in found:
                     found.append(host)
-                    SESSION.setdefault("owned_machines", []).append({
-                        "machine": host, "user": username, "method": "WinRM",
-                        "nt_hash": nt_hash, "time": datetime.now().isoformat(),
-                    })
+                    _add_owned_machine(host, user=username, method="WinRM",
+                                       nt_hash=nt_hash,
+                                       time=datetime.now().isoformat())
                     add_finding(
                         "WinRM Access Discovered", "Critical",
                         f"WinRM Pwn3d: {domain}\\{username} on {host}",
@@ -6430,9 +6450,8 @@ def tool_test_credential(dc_ip: str, domain: str, username: str,
         add_finding(f"Admin WinRM Access: {username}", "Critical",
                     f"{domain}\\{username} has administrative WinRM access on {host}",
                     "Restrict local admin accounts")
-        SESSION["owned_machines"].append(
-            {"machine": host, "user": username,
-             "method": "WinRM", "time": datetime.now().isoformat()})
+        _add_owned_machine(host, user=username, method="WinRM",
+                           time=datetime.now().isoformat())
 
     save_session()
     return ("\n".join(results)
@@ -6453,9 +6472,8 @@ def tool_update_session(**kwargs) -> str:
                                                "time": datetime.now().isoformat()})
     if kwargs.get("owned_machines"):
         for m in kwargs["owned_machines"]:
-            if {"machine": m} not in SESSION["owned_machines"]:
-                SESSION["owned_machines"].append({"machine": m, "method": "agent",
-                                                   "time": datetime.now().isoformat()})
+            _add_owned_machine(m, method="agent",
+                               time=datetime.now().isoformat())
     SESSION.update(updates)
     save_session()
     return f"Session updated: {list(updates.keys())} | Owned: {len(SESSION['owned_users'])}u / {len(SESSION['owned_machines'])}m"
@@ -6770,11 +6788,9 @@ def tool_evil_winrm(dc_ip: str, domain: str, username: str,
                     f"WinRM access: {username}@{host}",
                     "Restrict WinRM; audit Remote Management Users group",
                     proof_level="owned")
-        SESSION["owned_machines"].append(
-            {"machine": host, "user": username,
-             "nt_hash": nt_hash,
-             "method": "WinRM (Kerberos)" if use_krb_auth else "WinRM",
-             "time": datetime.now().isoformat()})
+        _add_owned_machine(host, user=username, nt_hash=nt_hash,
+                           method="WinRM (Kerberos)" if use_krb_auth else "WinRM",
+                           time=datetime.now().isoformat())
         save_session()
 
     # Step 2: Collect recon output
@@ -11710,6 +11726,43 @@ def run_agent(target_ip: str, domain: str, username: str,
 #  INTERACTIVE MODULE ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _print_mcp_setup():
+    """Explain the MCP path: AdStrike runs as a tool server inside Claude Code /
+    Cursor, which is the brain and funds the LLM from its own subscription — so
+    there is NO API key and NO local model on this path. This is a different
+    entry point from the standalone agent above; it is launched by the host, not
+    from this menu (a stdio server needs a client on the other end)."""
+    repo = Path(__file__).resolve().parents[2]
+    vpy  = repo / "venv" / "bin" / "python3"
+    py   = str(vpy) if vpy.exists() else "python3"
+    srv  = repo / "mcp_server.py"
+    print(f"""
+  {fg(75)}{BOLD}MCP server — no API key, no local model{RST}
+
+  On this path AdStrike does NOT run its own brain. You register it as a tool
+  server in {fg(110)}Claude Code / Cursor / Claude Desktop{RST}, and the host LLM (your
+  existing subscription) decides which tool to call. No menu, no key prompt.
+
+  {fg(71)}1.{RST} Register it (one time):
+     {fg(110)}claude mcp add adstrike -- {py} {srv}{RST}
+
+     …or add to {fg(110)}.mcp.json{RST}:
+     {{
+       "mcpServers": {{
+         "adstrike": {{
+           "command": "{py}",
+           "args": ["{srv}"]
+         }}
+       }}
+     }}
+
+  {fg(71)}2.{RST} In Claude Code, set the engagement once, then let it drive:
+     {DIM}set_engagement: dc_ip, domain, username, password (or nt_hash){RST}
+
+  Full guide: {fg(110)}docs/mcp.md{RST}
+""")
+
+
 def run():
     print_banner(
         "RED TEAM AGENT — AI-Powered AD Attack",
@@ -11723,10 +11776,15 @@ def run():
   {fg(75)}{BOLD}Backend (AI Engine):{RST}
   {fg(71)}[1]{RST} Ollama  {fg(71)}← RECOMMENDED{RST}  (local, free, no internet required)
   {fg(110)}[2]{RST} Claude  (Anthropic API key required)
+  {fg(71)}[3]{RST} MCP server  (run inside Claude Code / Cursor — {fg(71)}no API key{RST})
   {fg(238)}[0]{RST} Back
 """)
     backend = input(f"  Backend [1]: ").strip() or "1"
     if backend == "0":
+        return
+    if backend == "3":
+        _print_mcp_setup()
+        pause()
         return
 
     use_ollama = (backend != "2")
