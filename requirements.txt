@@ -18,6 +18,9 @@ certipy-ad>=4.8.2
 
 # ── AI Agent ──────────────────────────────────────────────────
 anthropic>=0.40.0
+# MCP server path (docs/mcp.md): run AdStrike's tools inside Claude Code /
+# Cursor with no Ollama and no API key. Not needed for the standalone agent.
+mcp>=1.0.0
 
 # ── Utility ───────────────────────────────────────────────────
 colorama>=0.4.6
