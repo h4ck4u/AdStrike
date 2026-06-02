@@ -47,20 +47,27 @@ usual regardless of where the host launches it. Tool status text goes to
 
 ### Claude Code
 
-**Option A — project file** `.mcp.json` (committed or local):
+**Option A — shipped project file (default).** The repo already contains a
+`.mcp.json` at its root with repo-relative paths:
 
 ```json
 {
   "mcpServers": {
     "adstrike": {
-      "command": "/path/to/AdStrike/venv/bin/python3",
-      "args": ["/path/to/AdStrike/mcp_server.py"]
+      "command": "venv/bin/python3",
+      "args": ["mcp_server.py"]
     }
   }
 }
 ```
 
-**Option B — CLI:**
+Because the paths are relative, this works as-is **when you launch Claude Code
+from the AdStrike folder** (the paths resolve against that cwd, and the install
+puts the interpreter at `venv/`). No edit needed — just approve the server on
+first launch. If your venv lives elsewhere, point `command` at that interpreter.
+
+**Option B — global registration via CLI** (works from any directory; use
+absolute paths):
 
 ```bash
 claude mcp add adstrike -- /path/to/AdStrike/venv/bin/python3 /path/to/AdStrike/mcp_server.py
