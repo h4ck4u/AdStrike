@@ -6944,7 +6944,15 @@ def tool_bloodyad(dc_ip: str, domain: str, username: str,
     cmd = f"{shell_quote(_bin('bloodyAD'))} {auth} {action}"
     if target:   cmd += f" '{target}'"
     if attribute: cmd += f" {attribute}"
-    if value:    cmd += f" -v '{value}'"
+    if value:
+        # Only `set object` consumes the value via -v; other actions
+        # (add/remove groupMember, set password, add rbcd, ...) take it
+        # as a positional argument. Passing -v to them makes bloodyAD parse
+        # it as the global verbosity flag and abort with "unrecognized -v".
+        if action.strip().lower().startswith("set object"):
+            cmd += f" -v '{value}'"
+        else:
+            cmd += f" '{value}'"
 
     try:
         r = subprocess.run(f"{_faketime_prefix()}{cmd}", shell=True, capture_output=True, text=True,
