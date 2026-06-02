@@ -29,6 +29,14 @@ AdStrike is a modular, terminal-based Active Directory attack framework. It help
 
 The framework stores target details, credentials, Kerberos state, findings, executed commands, and output paths in a shared session. Modules can reuse that context instead of forcing the operator to re-enter the same data repeatedly.
 
+> **🔑 No API key required.** AdStrike now ships an **MCP server** that exposes all
+> **53 tools** (52 attack modules + `set_engagement`) over the [Model Context
+> Protocol](https://modelcontextprotocol.io). Plug it into an MCP host you already
+> use — **Claude Code, Cursor, Claude Desktop** — and that host's LLM drives the
+> whole engagement with **its own subscription**. No Ollama, **no `ANTHROPIC_API_KEY`**,
+> no local model to download. See **[MCP Server (No API Key)](#mcp-server-no-api-key)**
+> below and **[docs/mcp.md](docs/mcp.md)**.
+
 Core capabilities:
 
 - 58 interactive menu entries: 52 attack modules, 4 utilities, 2 management functions
@@ -36,6 +44,7 @@ Core capabilities:
 - Kerberos-aware workflows for NTLM-disabled and LDAP-signing-enforced environments
 - Smart Analyst for parsing output and ranking next actions
 - Optional AdStrike Agent for AI-assisted planning or tool orchestration
+- **MCP server exposing all 53 tools — no API key, driven by your existing MCP host (Claude Code / Cursor / Claude Desktop)**
 - Report generation in HTML, Markdown, and JSON
 - Wrappers for common AD tooling such as Impacket, NetExec, Certipy, Kerbrute, BloodHound, PowerView, Rubeus, and related utilities
 
@@ -427,6 +436,74 @@ OPSEC modes:
 
 ---
 
+## MCP Server (No API Key)
+
+> **No `ANTHROPIC_API_KEY`, no Ollama, no local model.** On this path AdStrike runs
+> **no LLM of its own**. It exposes its AD-attack tools over the
+> [Model Context Protocol](https://modelcontextprotocol.io), and an MCP host you
+> already have — **Claude Code, Cursor, Claude Desktop** — drives the engagement
+> with **its own subscription**. The host is the brain; AdStrike is the toolbox.
+
+All **53 tools** are published — the 52 attack tools (`nmap_scan`, `enumerate_ldap`,
+`adcs_scan`, `evil_winrm`, `gmsa_read`, `dcsync_attack`, `kerberoast`, …) plus
+`set_engagement` — using the exact same schemas the standalone agent uses
+(`modules/agent/_core.py`), so there is one source of truth and no duplication.
+
+**1. Verify the server can load** (uses the project venv):
+
+```bash
+./venv/bin/python3 -c "import mcp; from modules.agent._core import TOOLS; print('ok', len(TOOLS))"
+```
+
+**2. Register in Claude Code** — project file `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "adstrike": {
+      "command": "/path/to/AdStrike/venv/bin/python3",
+      "args": ["/path/to/AdStrike/mcp_server.py"]
+    }
+  }
+}
+```
+
+or via CLI:
+
+```bash
+claude mcp add adstrike -- /path/to/AdStrike/venv/bin/python3 /path/to/AdStrike/mcp_server.py
+```
+
+Cursor and Claude Desktop use the same `command` + `args` shape in their MCP config.
+
+**3. Start Claude Code from the AdStrike folder.** A project `.mcp.json` is only
+loaded when `claude` launches from the directory that contains it, so run it there:
+
+```bash
+cd /path/to/AdStrike
+claude
+```
+
+On first launch Claude Code asks you to approve the `adstrike` MCP server — accept
+it. Confirm the tools are live with `/mcp` inside Claude Code (or `claude mcp list`
+from the shell). Cursor and Claude Desktop pick the server up after a restart.
+
+**4. Use it.** Set the engagement once, then let the host drive:
+
+> set_engagement: dc_ip `10.0.0.1`, domain `corp.local`, username `alice`, password `…` (or `nt_hash`)
+
+AdStrike stores the target and credentials in the session and **injects them into
+every later tool call**, so the host LLM never has to repeat the password and can't
+accidentally target the wrong host or account. From there the host reads each
+tool's output and picks the next tool — nmap → LDAP enum → BloodHound → the
+matching abuse primitive — just like the built-in agent loop, but funded by the
+host subscription.
+
+Full walkthrough (requirements, config for each host, OPSEC notes):
+**[docs/mcp.md](docs/mcp.md)**.
+
+---
+
 ## Performance / GPU Acceleration
 
 ### Why the Ollama agent may feel slow
@@ -561,9 +638,10 @@ Then review `.env`, `output/session.json`, and generated reports manually before
 
 ## Documentation
 
-Additional guide:
+Additional guides:
 
 - [AdStrike and Agent Guide](docs/ADSTRIKE_AND_AGENT_GUIDE.md)
+- [MCP Server — No API Key (Claude Code / Cursor / Claude Desktop)](docs/mcp.md)
 
 Security policy:
 
