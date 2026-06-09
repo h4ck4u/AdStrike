@@ -1,0 +1,1 @@
+/opt/AdStrike/tools/krbrelayx/dnstool.py

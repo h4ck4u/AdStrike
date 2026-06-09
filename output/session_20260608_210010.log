@@ -1,0 +1,354 @@
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  56 menu entries  |  8 guided phases  |  AI operator  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [57] Session -> [58] Tool Checker -> [10] Enum -> [53] AI Agent -> [56] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+    [ 4]  CVE / AD Exploits                 NoPac · PrintNightmare · Zerologon
+    [ 5]  AMSI / Defense Evasion            AMSI bypass · CLM · AppLocker · Codecepticon
+    [ 6]  EDR / AV Evasion                  NanoDump+MockingJay · RWXfinder · BOF · syscalls
+    [ 7]  UAC Bypass                        fodhelper · eventvwr · CMSTP · token
+    [ 8]  Pre2K & Timeroasting              Pre-Win2K accounts · MS-SNTP hash · MAQ abuse
+    [ 9]  WSUS Attack                       WSUS HTTP spoof · pywsus · SYSTEM code exec
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [10]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [11]  PowerView Enumeration             Full PowerView cmdlet reference
+    [12]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [13]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [14]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [15]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [16]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [17]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [18]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [19]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [20]  Shadow Credentials                msDS-KeyCredentialLink · PKINIT
+    [21]  RBCD Full Chain                   Powermad · S4U2Proxy · /altservice · Bronze Bit
+    [22]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+    [23]  Certificate Abuse (ADCS)          ESC1–ESC13 · certipy · CertSync
+    [24]  RODC Attacks                      PRP abuse · Key List · RODC Golden Ticket
+    [25]  Golden Certificate                ESC13/14/15/16 · CA key theft · UnPAC · PassTheCert
+    [26]  UnPAC / PassTheCert               Targeted Kerberoast · UnPAC · PassTheCert · SPN-Jack
+    [27]  JEA Attacks                       JEA bypass · PSReadLine history · CLM escape
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [28]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [29]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [30]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [31]  Password Attacks                  Spray · kerbrute · stuffing · relay
+    [32]  SCCM / MECM Abuse                 NAA · relay · push · AdminService
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [33]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [34]  DPAPI & Credential Vault          dploot bulk · SharpDPAPI · LaZagne · KeeThief
+    [35]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [36]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+    [37]  Domain Persistence                Golden · AdminSDHolder · NPPSPY · TTL group
+    [38]  Local Persistence                 SharPersist · WMI · Registry · Startup
+    [39]  GPO Abuse                         GPO create · link · exec · hijack · logon
+    [40]  DNSAdmins Abuse                   DLL injection via DNS service
+    [41]  Trust Attacks                     TrustKey · SIDHistoryDC · PAM · Multi-Hop
+    [42]  AD Misc Abuse                     BackupOps · Skeleton Key · Exchange
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+    [43]  Azure AD / Entra ID               AADConnect · PTA · PHS · PRT · token
+    [44]  Entra Hybrid Attacks              MSOL DCSync · adconnect.ps1 · DeviceCode · PTA
+    [45]  gMSA Attacks                      Enum · extract · PTH · shadow-creds · DSInternals
+    [46]  ADFS & Golden SAML                Token signing cert · Golden SAML · AADInternals
+    [47]  AiTM / MFA Bypass                 Evilginx2 · MFA fatigue · cookie replay · hybrid pivot
+    [48]  M365 / Teams Attacks              MailSniper · Graph API · Teams phishing · Intune abuse
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+    [49]  Exploit Chains                    8 pre-built full-DA attack paths
+    [50]  C2 Integration                    Sliver · Havoc · MSF · CS payload delivery
+    [51]  Loot Parser & Analyzer            Parse · dedup · score · export creds
+    [52]  AD Advanced Playbook              WDAC · MDE/MDI · WMI filters · trusts · deception
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [53]  AdStrike Agent (AI)               Claude AI · autonomous attack orchestrator · all modules
+    [54]  Smart Analyst                     Parse outputs · build attack plan · auto-execute
+    [55]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [56]  Generate Report                   HTML · Markdown · JSON pentest report
+    [57]  Session Manager                   Save · load · switch · clear sessions
+    [58]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═════════════════════════════════════════════╗
+  ║                TOOL CHECKER                 ║
+  ╠═════════════════════════════════════════════╣
+  ║    Verifying installed offensive tooling    ║
+  ╚═════════════════════════════════════════════╝
+
+  [*] Tool availability — required 56/57 ready · total 57/65 ready
+  ┌──────────┬─────────────────────────┬────────────┐
+  │ Group    │ Tool                    │ Status     │
+  ├──────────┼─────────────────────────┼────────────┤
+  │ Impacket │ impacket-secretsdump    │ ● READY    │
+  │ Impacket │ impacket-GetNPUsers     │ ● READY    │
+  │ Impacket │ impacket-GetUserSPNs    │ ● READY    │
+  │ Impacket │ impacket-ticketer       │ ● READY    │
+  │ Impacket │ impacket-psexec         │ ● READY    │
+  │ Impacket │ impacket-wmiexec        │ ● READY    │
+  │ Impacket │ impacket-smbexec        │ ● READY    │
+  │ Impacket │ impacket-atexec         │ ● READY    │
+  │ Impacket │ impacket-dcomexec       │ ● READY    │
+  │ Impacket │ impacket-dacledit       │ ● READY    │
+  │ Impacket │ impacket-ntlmrelayx     │ ● READY    │
+  │ Impacket │ impacket-lookupsid      │ ● READY    │
+  │ Impacket │ impacket-addcomputer    │ ● READY    │
+  │ Impacket │ impacket-getTGT         │ ● READY    │
+  │ Impacket │ impacket-getST          │ ● READY    │
+  │ Impacket │ impacket-rbcd           │ ● READY    │
+  │ Impacket │ impacket-findDelegation │ ● READY    │
+  │ Impacket │ impacket-reg            │ ● READY    │
+  │ Core     │ nxc                     │ ● READY    │
+  │ Core     │ crackmapexec            │ ● READY    │
+  │ Core     │ evil-winrm              │ ● READY    │
+  │ Core     │ bloodhound-python       │ ● READY    │
+  │ Core     │ ldapsearch              │ ● READY    │
+  │ Core     │ certipy                 │ ● READY    │
+  │ Core     │ enum4linux-ng           │ ● READY    │
+  │ Core     │ bloodyAD                │ ● READY    │
+  │ Cracking │ hashcat                 │ ● READY    │
+  │ Cracking │ john                    │ ● READY    │
+  │ Cracking │ hydra                   │ ● READY    │
+  │ Cracking │ cewl                    │ ● READY    │
+  │ Network  │ nmap                    │ ● READY    │
+  │ Network  │ masscan                 │ ● READY    │
+  │ Network  │ nbtscan                 │ ● READY    │
+  │ Network  │ netdiscover             │ ● READY    │
+  │ Network  │ rustscan                │ ● READY    │
+  │ Relay    │ responder               │ ● READY    │
+  │ Relay    │ mitm6                   │ ● READY    │
+  │ Relay    │ ntlmrelayx.py           │ ● READY    │
+  │ Kerberos │ kerbrute                │ ● READY    │
+  │ Kerberos │ klist                   │ ● READY    │
+  │ Kerberos │ kinit                   │ ● READY    │
+  │ Kerberos │ kdestroy                │ ● READY    │
+  │ Kerberos │ faketime                │ ○ MISSING  │
+  │ Coercion │ coercer                 │ ● READY    │
+  │ Coercion │ PetitPotam.py           │ ● READY    │
+  │ Coercion │ printerbug.py           │ ● READY    │
+  │ Creds    │ lsassy                  │ ● READY    │
+  │ Creds    │ dploot                  │ ● READY    │
+  │ Creds    │ pypykatz                │ ● READY    │
+  │ Creds    │ lazagne                 │ ○ OPTIONAL │
+  │ ADCS     │ certipy                 │ ● READY    │
+  │ ADCS     │ certsync                │ ○ OPTIONAL │
+  │ SCCM     │ sccmhunter              │ ○ OPTIONAL │
+  │ SCCM     │ SharpSCCM.exe           │ ○ OPTIONAL │
+  │ Cloud    │ roadrecon               │ ● READY    │
+  │ Cloud    │ roadtx                  │ ● READY    │
+  │ Cloud    │ AADInternals            │ ○ OPTIONAL │
+  │ C2       │ sliver-server           │ ○ OPTIONAL │
+  │ C2       │ havoc                   │ ○ OPTIONAL │
+  │ C2       │ msfconsole              │ ● READY    │
+  │ Misc     │ dig                     │ ● READY    │
+  │ Misc     │ dnstool.py              │ ● READY    │
+  │ Misc     │ rpcclient               │ ● READY    │
+  │ Misc     │ smbclient               │ ● READY    │
+  │ Misc     │ jq                      │ ● READY    │
+  └──────────┴─────────────────────────┴────────────┘
+
+  [*] Module health — 56/56 import-ready
+  ┌────┬────────────────────────────┬─────────────────────────────────┬────────┐
+  │ #  │ Module                     │ File                            │ Health │
+  ├────┼────────────────────────────┼─────────────────────────────────┼────────┤
+  │ 1  │ Recon & OSINT              │ modules/recon_osint.py          │ ● OK   │
+  │ 2  │ Network Discovery          │ modules/network_discovery.py    │ ● OK   │
+  │ 3  │ Initial Access (No Creds)  │ modules/initial_access.py       │ ● OK   │
+  │ 4  │ CVE / AD Exploits          │ modules/cve_exploits.py         │ ● OK   │
+  │ 5  │ AMSI / Defense Evasion     │ modules/amsi_bypass.py          │ ● OK   │
+  │ 6  │ EDR / AV Evasion           │ modules/edr_evasion.py          │ ● OK   │
+  │ 7  │ UAC Bypass                 │ modules/uac_bypass.py           │ ● OK   │
+  │ 8  │ Pre2K & Timeroasting       │ modules/pre2k_timeroast.py      │ ● OK   │
+  │ 9  │ WSUS Attack                │ modules/wsus_attack.py          │ ● OK   │
+  │ 10 │ AD Enumeration             │ modules/enum_ad.py              │ ● OK   │
+  │ 11 │ PowerView Enumeration      │ modules/powerview_enum.py       │ ● OK   │
+  │ 12 │ BloodHound Helper          │ modules/bloodhound_helper.py    │ ● OK   │
+  │ 13 │ File & Share Hunter        │ modules/snaffler_hunter.py      │ ● OK   │
+  │ 14 │ NetExec / NXC Suite        │ modules/netexec_suite.py        │ ● OK   │
+  │ 15 │ User Hunting               │ modules/user_hunting.py         │ ● OK   │
+  │ 16 │ ADIDNS Abuse               │ modules/adidns_abuse.py         │ ● OK   │
+  │ 17 │ Local Privilege Escalation │ modules/local_privesc.py        │ ● OK   │
+  │ 18 │ Kerberos Attacks           │ modules/kerberos_attacks.py     │ ● OK   │
+  │ 19 │ Rubeus Toolkit             │ modules/rubeus_module.py        │ ● OK   │
+  │ 20 │ Shadow Credentials         │ modules/shadow_credentials.py   │ ● OK   │
+  │ 21 │ RBCD Full Chain            │ modules/rbcd_attacks.py         │ ● OK   │
+  │ 22 │ ACL / ACE Abuse            │ modules/acl_abuse.py            │ ● OK   │
+  │ 23 │ Certificate Abuse (ADCS)   │ modules/cert_abuse.py           │ ● OK   │
+  │ 24 │ RODC Attacks               │ modules/rodc_attacks.py         │ ● OK   │
+  │ 25 │ Golden Certificate         │ modules/golden_certificate.py   │ ● OK   │
+  │ 26 │ UnPAC / PassTheCert        │ modules/unpac_passthecert.py    │ ● OK   │
+  │ 27 │ JEA Attacks                │ modules/jea_attacks.py          │ ● OK   │
+  │ 28 │ Lateral Movement           │ modules/lateral_movement.py     │ ● OK   │
+  │ 29 │ Coercion Attacks           │ modules/coercion_attacks.py     │ ● OK   │
+  │ 30 │ MSSQL Abuse                │ modules/mssql_abuse.py          │ ● OK   │
+  │ 31 │ Password Attacks           │ modules/password_attacks.py     │ ● OK   │
+  │ 32 │ SCCM / MECM Abuse          │ modules/sccm_abuse.py           │ ● OK   │
+  │ 33 │ Credential Dumping         │ modules/credential_dump.py      │ ● OK   │
+  │ 34 │ DPAPI & Credential Vault   │ modules/dpapi_creds.py          │ ● OK   │
+  │ 35 │ DCSync / DCShadow          │ modules/dcsync_dcshadow.py      │ ● OK   │
+  │ 36 │ Shadow Copies Abuse        │ modules/shadow_copies.py        │ ● OK   │
+  │ 37 │ Domain Persistence         │ modules/persistence.py          │ ● OK   │
+  │ 38 │ Local Persistence          │ modules/local_persistence.py    │ ● OK   │
+  │ 39 │ GPO Abuse                  │ modules/gpo_abuse.py            │ ● OK   │
+  │ 40 │ DNSAdmins Abuse            │ modules/dnsadmins_abuse.py      │ ● OK   │
+  │ 41 │ Trust Attacks              │ modules/trust_attacks.py        │ ● OK   │
+  │ 42 │ AD Misc Abuse              │ modules/ad_abuse_extra.py       │ ● OK   │
+  │ 43 │ Azure AD / Entra ID        │ modules/azure_ad.py             │ ● OK   │
+  │ 44 │ Entra Hybrid Attacks       │ modules/entra_hybrid_attacks.py │ ● OK   │
+  │ 45 │ gMSA Attacks               │ modules/gmsa_attacks.py         │ ● OK   │
+  │ 46 │ ADFS & Golden SAML         │ modules/adfs_attacks.py         │ ● OK   │
+  │ 47 │ AiTM / MFA Bypass          │ modules/aitm_mfa_bypass.py      │ ● OK   │
+  │ 48 │ M365 / Teams Attacks       │ modules/m365_teams_attacks.py   │ ● OK   │
+  │ 49 │ Exploit Chains             │ modules/exploit_chains.py       │ ● OK   │
+  │ 50 │ C2 Integration             │ modules/c2_integration.py       │ ● OK   │
+  │ 51 │ Loot Parser & Analyzer     │ modules/loot_parser.py          │ ● OK   │
+  │ 52 │ AD Advanced Playbook       │ modules/ad_advanced_playbook.py │ ● OK   │
+  │ 53 │ AdStrike Agent (AI)        │ modules/red_team_agent.py       │ ● OK   │
+  │ 54 │ Smart Analyst              │ modules/analyst.py              │ ● OK   │
+  │ 55 │ Kerberos Manager           │ modules/kerberos_manager.py     │ ● OK   │
+  │ 56 │ Generate Report            │ modules/reporting.py            │ ● OK   │
+  └────┴────────────────────────────┴─────────────────────────────────┴────────┘
+  [+] Capability audit saved → /opt/AdStrike/output/audit/capability_audit.json
+
+  ▸ Install commands:
+    repair: bash scripts/repair_tools.sh --check
+            bash scripts/repair_tools.sh -y
+    apt : sudo apt install -y impacket-scripts crackmapexec evil-winrm \
+               bloodhound ldap-utils hashcat john hydra nmap masscan nbtscan \
+               netdiscover responder krb5-user dnsutils samba-common-bin
+    pip : pip install netexec certipy-ad bloodhound mitm6 lsassy dploot \
+               roadrecon roadtx coercer
+    bin : kerbrute — manual install from GitHub releases
+
+  [Enter] to return
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  56 menu entries  |  8 guided phases  |  AI operator  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [57] Session -> [58] Tool Checker -> [10] Enum -> [53] AI Agent -> [56] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+    [ 4]  CVE / AD Exploits                 NoPac · PrintNightmare · Zerologon
+    [ 5]  AMSI / Defense Evasion            AMSI bypass · CLM · AppLocker · Codecepticon
+    [ 6]  EDR / AV Evasion                  NanoDump+MockingJay · RWXfinder · BOF · syscalls
+    [ 7]  UAC Bypass                        fodhelper · eventvwr · CMSTP · token
+    [ 8]  Pre2K & Timeroasting              Pre-Win2K accounts · MS-SNTP hash · MAQ abuse
+    [ 9]  WSUS Attack                       WSUS HTTP spoof · pywsus · SYSTEM code exec
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [10]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [11]  PowerView Enumeration             Full PowerView cmdlet reference
+    [12]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [13]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [14]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [15]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [16]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [17]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [18]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [19]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [20]  Shadow Credentials                msDS-KeyCredentialLink · PKINIT
+    [21]  RBCD Full Chain                   Powermad · S4U2Proxy · /altservice · Bronze Bit
+    [22]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+    [23]  Certificate Abuse (ADCS)          ESC1–ESC13 · certipy · CertSync
+    [24]  RODC Attacks                      PRP abuse · Key List · RODC Golden Ticket
+    [25]  Golden Certificate                ESC13/14/15/16 · CA key theft · UnPAC · PassTheCert
+    [26]  UnPAC / PassTheCert               Targeted Kerberoast · UnPAC · PassTheCert · SPN-Jack
+    [27]  JEA Attacks                       JEA bypass · PSReadLine history · CLM escape
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [28]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [29]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [30]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [31]  Password Attacks                  Spray · kerbrute · stuffing · relay
+    [32]  SCCM / MECM Abuse                 NAA · relay · push · AdminService
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [33]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [34]  DPAPI & Credential Vault          dploot bulk · SharpDPAPI · LaZagne · KeeThief
+    [35]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [36]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+    [37]  Domain Persistence                Golden · AdminSDHolder · NPPSPY · TTL group
+    [38]  Local Persistence                 SharPersist · WMI · Registry · Startup
+    [39]  GPO Abuse                         GPO create · link · exec · hijack · logon
+    [40]  DNSAdmins Abuse                   DLL injection via DNS service
+    [41]  Trust Attacks                     TrustKey · SIDHistoryDC · PAM · Multi-Hop
+    [42]  AD Misc Abuse                     BackupOps · Skeleton Key · Exchange
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+    [43]  Azure AD / Entra ID               AADConnect · PTA · PHS · PRT · token
+    [44]  Entra Hybrid Attacks              MSOL DCSync · adconnect.ps1 · DeviceCode · PTA
+    [45]  gMSA Attacks                      Enum · extract · PTH · shadow-creds · DSInternals
+    [46]  ADFS & Golden SAML                Token signing cert · Golden SAML · AADInternals
+    [47]  AiTM / MFA Bypass                 Evilginx2 · MFA fatigue · cookie replay · hybrid pivot
+    [48]  M365 / Teams Attacks              MailSniper · Graph API · Teams phishing · Intune abuse
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+    [49]  Exploit Chains                    8 pre-built full-DA attack paths
+    [50]  C2 Integration                    Sliver · Havoc · MSF · CS payload delivery
+    [51]  Loot Parser & Analyzer            Parse · dedup · score · export creds
+    [52]  AD Advanced Playbook              WDAC · MDE/MDI · WMI filters · trusts · deception
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [53]  AdStrike Agent (AI)               Claude AI · autonomous attack orchestrator · all modules
+    [54]  Smart Analyst                     Parse outputs · build attack plan · auto-execute
+    [55]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [56]  Generate Report                   HTML · Markdown · JSON pentest report
+    [57]  Session Manager                   Save · load · switch · clear sessions
+    [58]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 

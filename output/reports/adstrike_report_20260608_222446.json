@@ -1,0 +1,28 @@
+{
+  "schema_version": "2.0",
+  "generated_by": "AdStrike v5.0",
+  "generated_at": "2026-06-08T22:24:46.932413",
+  "engagement": "hackerblueprint-lab",
+  "tester": "jgarcia",
+  "target": {
+    "domain": "hackerblueprint.local",
+    "dc_ip": "192.168.189.10"
+  },
+  "risk": {
+    "overall_cvss": 0.0,
+    "overall_severity": "Info"
+  },
+  "summary": {
+    "Critical": 0,
+    "High": 0,
+    "Medium": 0,
+    "Low": 0,
+    "Info": 0
+  },
+  "commands_run": 1,
+  "owned_users": [],
+  "owned_machines": [],
+  "loot_keys": [],
+  "mitre_tactics_covered": [],
+  "findings": []
+}

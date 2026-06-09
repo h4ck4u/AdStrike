@@ -1,0 +1,133 @@
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  56 menu entries  |  8 guided phases  |  AI operator  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  twright@hackerblueprint.local  ▶  192.168.189.11  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [57] Session -> [58] Tool Checker -> [10] Enum -> [53] AI Agent -> [56] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+    [ 4]  CVE / AD Exploits                 NoPac · PrintNightmare · Zerologon
+    [ 5]  AMSI / Defense Evasion            AMSI bypass · CLM · AppLocker · Codecepticon
+    [ 6]  EDR / AV Evasion                  NanoDump+MockingJay · RWXfinder · BOF · syscalls
+    [ 7]  UAC Bypass                        fodhelper · eventvwr · CMSTP · token
+    [ 8]  Pre2K & Timeroasting              Pre-Win2K accounts · MS-SNTP hash · MAQ abuse
+    [ 9]  WSUS Attack                       WSUS HTTP spoof · pywsus · SYSTEM code exec
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [10]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [11]  PowerView Enumeration             Full PowerView cmdlet reference
+    [12]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [13]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [14]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [15]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [16]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [17]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [18]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [19]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [20]  Shadow Credentials                msDS-KeyCredentialLink · PKINIT
+    [21]  RBCD Full Chain                   Powermad · S4U2Proxy · /altservice · Bronze Bit
+    [22]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+    [23]  Certificate Abuse (ADCS)          ESC1–ESC13 · certipy · CertSync
+    [24]  RODC Attacks                      PRP abuse · Key List · RODC Golden Ticket
+    [25]  Golden Certificate                ESC13/14/15/16 · CA key theft · UnPAC · PassTheCert
+    [26]  UnPAC / PassTheCert               Targeted Kerberoast · UnPAC · PassTheCert · SPN-Jack
+    [27]  JEA Attacks                       JEA bypass · PSReadLine history · CLM escape
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [28]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [29]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [30]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [31]  Password Attacks                  Spray · kerbrute · stuffing · relay
+    [32]  SCCM / MECM Abuse                 NAA · relay · push · AdminService
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [33]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [34]  DPAPI & Credential Vault          dploot bulk · SharpDPAPI · LaZagne · KeeThief
+    [35]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [36]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+    [37]  Domain Persistence                Golden · AdminSDHolder · NPPSPY · TTL group
+    [38]  Local Persistence                 SharPersist · WMI · Registry · Startup
+    [39]  GPO Abuse                         GPO create · link · exec · hijack · logon
+    [40]  DNSAdmins Abuse                   DLL injection via DNS service
+    [41]  Trust Attacks                     TrustKey · SIDHistoryDC · PAM · Multi-Hop
+    [42]  AD Misc Abuse                     BackupOps · Skeleton Key · Exchange
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+    [43]  Azure AD / Entra ID               AADConnect · PTA · PHS · PRT · token
+    [44]  Entra Hybrid Attacks              MSOL DCSync · adconnect.ps1 · DeviceCode · PTA
+    [45]  gMSA Attacks                      Enum · extract · PTH · shadow-creds · DSInternals
+    [46]  ADFS & Golden SAML                Token signing cert · Golden SAML · AADInternals
+    [47]  AiTM / MFA Bypass                 Evilginx2 · MFA fatigue · cookie replay · hybrid pivot
+    [48]  M365 / Teams Attacks              MailSniper · Graph API · Teams phishing · Intune abuse
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+    [49]  Exploit Chains                    8 pre-built full-DA attack paths
+    [50]  C2 Integration                    Sliver · Havoc · MSF · CS payload delivery
+    [51]  Loot Parser & Analyzer            Parse · dedup · score · export creds
+    [52]  AD Advanced Playbook              WDAC · MDE/MDI · WMI filters · trusts · deception
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [53]  AdStrike Agent (AI)               Claude AI · autonomous attack orchestrator · all modules
+    [54]  Smart Analyst                     Parse outputs · build attack plan · auto-execute
+    [55]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [56]  Generate Report                   HTML · Markdown · JSON pentest report
+    [57]  Session Manager                   Save · load · switch · clear sessions
+    [58]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═════════════════════════════════════╗
+  ║    AMSI BYPASS & DEFENSE EVASION    ║
+  ╚═════════════════════════════════════╝
+
+  [auto] Attacker IP           : 192.168.189.128
+
+  ── AMSI & ETW ───────────────────────────────────────────────────────────────
+  [1]  AMSI Bypass Payloads          (5 techniques)
+  [2]  ETW Patching                  (blind Event Tracing)
+
+  ── IN-MEMORY PAYLOAD DELIVERY ───────────────────────────────────────────────
+  [3]  PowerShell Download Cradles   (6 methods — CRTP)
+  [4]  Base64 Encode & Execute       (bypass logging + policy)
+  [5]  BITS-based Download           (bitsadmin / Start-BitsTransfer)
+
+  ── ENVIRONMENT BYPASSES ─────────────────────────────────────────────────────
+  [6]  Constrained Language Mode     (CLM bypass)
+  [7]  Execution Policy Bypass
+  [8]  AppLocker Bypass
+
+  ── PIVOTING & ACCESS ────────────────────────────────────────────────────────
+  [9]  Port Forwarding               (netsh portproxy)
+  [10] Run Domain Commands from non-domain machine
+  [11] Create PowerShell Credential Object
+
+  ── TOOL OBFUSCATION ─────────────────────────────────────────────────────────
+  [12] Codecepticon                  (.NET/PS/VBA source obfuscation — AD-Advanced)
+
+  [0]  Back
+
+  Choice: 

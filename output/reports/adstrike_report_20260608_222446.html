@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>hackerblueprint-lab — AdStrike Report</title>
+  <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  font-size: 14px;
+  line-height: 1.6;
+}
+a { color: #2980b9; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Header ── */
+.report-header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 48px 56px 36px;
+  border-bottom: 4px solid #e74c3c;
+}
+.report-header h1 { font-size: 2.2em; font-weight: 700; letter-spacing: -0.5px; }
+.report-header .subtitle { color: #a0aec0; margin-top: 6px; font-size: 0.95em; }
+.header-meta {
+  display: flex; gap: 32px; flex-wrap: wrap;
+  margin-top: 24px; color: #cbd5e0; font-size: 0.88em;
+}
+.header-meta span strong { color: #fff; }
+
+/* ── Risk badge ── */
+.risk-badge {
+  display: inline-flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px; padding: 16px 28px;
+  margin-left: auto;
+}
+.risk-badge .risk-score { font-size: 3em; font-weight: 800; line-height: 1; }
+.risk-badge .risk-label { font-size: 0.8em; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+
+/* ── Layout ── */
+.container { max-width: 1280px; margin: 0 auto; padding: 36px 40px; }
+.section { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 28px 32px; margin-bottom: 28px; }
+.section-title {
+  font-size: 1.15em; font-weight: 700; color: #1a1a2e;
+  border-bottom: 2px solid #e74c3c;
+  padding-bottom: 10px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title .icon { font-size: 1.1em; }
+
+/* ── Stat grid ── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card {
+  background: #f8f9fa; border-radius: 8px;
+  padding: 18px 12px; text-align: center;
+  border-top: 3px solid #ddd;
+}
+.stat-card .stat-num { font-size: 2.2em; font-weight: 800; line-height: 1; }
+.stat-card .stat-lbl { font-size: 0.78em; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Severity badge ── */
+.sev-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  font-size: 0.78em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: #fff;
+}
+
+/* ── MITRE pill ── */
+.mitre-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 0.75em; font-weight: 600;
+  background: #eef2ff; color: #3730a3;
+  border: 1px solid #c7d2fe; margin: 1px 2px;
+  font-family: 'Courier New', monospace;
+  cursor: default;
+}
+.mitre-pill:hover { background: #3730a3; color: #fff; }
+
+/* ── CVSS badge ── */
+.cvss-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 4px;
+  font-size: 0.8em; font-weight: 700; border: 1px solid;
+}
+
+/* ── Finding card ── */
+.finding-card {
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  margin-bottom: 18px; overflow: hidden;
+}
+.finding-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.finding-id { font-size: 0.85em; font-weight: 700; color: #6b7280; min-width: 28px; }
+.finding-name { font-weight: 700; font-size: 1.05em; flex: 1; }
+.finding-body { padding: 18px 20px; }
+.finding-body table { width: 100%; border-collapse: collapse; }
+.finding-body td { padding: 8px 12px; vertical-align: top; border-bottom: 1px solid #f3f4f6; }
+.finding-body td:first-child { font-weight: 600; color: #4b5563; width: 160px; white-space: nowrap; }
+.finding-body tr:last-child td { border-bottom: none; }
+
+/* ── ATT&CK Coverage ── */
+.tactic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.tactic-card {
+  border-radius: 8px; padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  position: relative; overflow: hidden;
+}
+.tactic-card.covered { border-left: 4px solid; }
+.tactic-card .tactic-name { font-weight: 700; font-size: 0.9em; margin-bottom: 4px; }
+.tactic-card .tactic-count { font-size: 0.8em; color: #6b7280; }
+.tactic-card .tactic-badge {
+  position: absolute; top: 8px; right: 10px;
+  font-size: 0.7em; font-weight: 700; padding: 1px 6px;
+  border-radius: 10px; color: #fff;
+}
+
+/* ── Timeline ── */
+.timeline-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.timeline-table th {
+  background: #1a1a2e; color: #fff;
+  padding: 10px 14px; text-align: left; font-weight: 600;
+}
+.timeline-table td { padding: 8px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+.timeline-table tr:nth-child(even) td { background: #f9fafb; }
+.timeline-table .cmd-cell {
+  font-family: 'Courier New', monospace; font-size: 0.88em;
+  color: #1a1a2e; word-break: break-all;
+}
+.timeline-table .time-cell { color: #6b7280; white-space: nowrap; min-width: 160px; }
+
+/* ── Findings overview table ── */
+.overview-table { width: 100%; border-collapse: collapse; }
+.overview-table th {
+  background: #1a1a2e; color: #fff;
+  padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.88em;
+}
+.overview-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88em; }
+.overview-table tr:hover td { background: #f9fafb; }
+
+/* ── Footer ── */
+.report-footer {
+  text-align: center; padding: 28px; color: #9ca3af;
+  font-size: 0.82em; border-top: 1px solid #e5e7eb; margin-top: 12px;
+}
+
+/* Print */
+@media print {
+  body { background: #fff; }
+  .section { box-shadow: none; border: 1px solid #e5e7eb; page-break-inside: avoid; }
+  .report-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:20px">
+    <div>
+      <div style="color:#e74c3c;font-size:0.78em;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+        PENETRATION TEST REPORT — CONFIDENTIAL
+      </div>
+      <h1>hackerblueprint-lab</h1>
+      <div class="subtitle">Active Directory Security Assessment</div>
+      <div class="header-meta">
+        <span><strong>Date:</strong> 2026-06-08</span>
+        <span><strong>Tester:</strong> jgarcia</span>
+        <span><strong>Target:</strong> hackerblueprint.local</span>
+        <span><strong>DC:</strong> 192.168.189.10</span>
+        <span><strong>Generated by:</strong> AdStrike v5.0</span>
+      </div>
+    </div>
+    <div class="risk-badge">
+      <div class="risk-score" style="color:#3498db">0.0</div>
+      <div class="risk-label" style="color:#3498db">Info Risk</div>
+      <div style="font-size:0.72em;color:#718096;margin-top:2px">Overall CVSS</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+
+  <!-- Executive Summary -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📋</span>Executive Summary</div>
+    <div class="stat-grid"><div class="stat-card" style="border-top-color:#e74c3c"><div class="stat-num" style="color:#e74c3c">0</div><div class="stat-lbl">Critical</div></div><div class="stat-card" style="border-top-color:#e67e22"><div class="stat-num" style="color:#e67e22">0</div><div class="stat-lbl">High</div></div><div class="stat-card" style="border-top-color:#f39c12"><div class="stat-num" style="color:#f39c12">0</div><div class="stat-lbl">Medium</div></div><div class="stat-card" style="border-top-color:#27ae60"><div class="stat-num" style="color:#27ae60">0</div><div class="stat-lbl">Low</div></div><div class="stat-card" style="border-top-color:#3498db"><div class="stat-num" style="color:#3498db">0</div><div class="stat-lbl">Info</div></div><div class="stat-card" style="border-top-color:#1a1a2e"><div class="stat-num" style="color:#1a1a2e">0</div><div class="stat-lbl">Total</div></div><div class="stat-card" style="border-top-color:#9b59b6"><div class="stat-num" style="color:#9b59b6">0</div><div class="stat-lbl">Owned Users</div></div><div class="stat-card" style="border-top-color:#16a085"><div class="stat-num" style="color:#16a085">0</div><div class="stat-lbl">Owned Hosts</div></div><div class="stat-card" style="border-top-color:#6b7280"><div class="stat-num" style="color:#6b7280">1</div><div class="stat-lbl">Commands</div></div></div>
+    <p style="line-height:1.8;color:#374151">During the <strong>hackerblueprint-lab</strong> engagement, an authorized Active Directory security assessment was conducted against the <strong>hackerblueprint.local</strong> environment. No security findings were identified during this assessment.</p>
+  </div>
+
+  <!-- ATT&CK Coverage -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎯</span>MITRE ATT&CK® Coverage</div>
+    <p style="color:#6b7280;font-size:0.88em;margin-bottom:16px">
+      Tactics and techniques observed during this assessment, mapped to the MITRE ATT&CK Enterprise framework.
+      <strong style="color:#3730a3">Blue highlighted</strong> cards indicate a technique was identified in at least one finding.
+    </p>
+    <div class="tactic-grid"><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Reconnaissance</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Initial Access</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Execution</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Persistence</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Privilege Escalation</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Defense Evasion</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Credential Access</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Discovery</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Lateral Movement</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Collection</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Command &amp; Control</div><div class="tactic-count">Not observed</div></div><div class="tactic-card " style="background:#f2f8fd;"><span class="tactic-badge" style="background:#d1d5db;color:#6b7280">○</span><div class="tactic-name" style="color:">Impact</div><div class="tactic-count">Not observed</div></div></div>
+  </div>
+
+  <!-- Findings Overview Table -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔍</span>Findings Overview</div>
+    <table class="overview-table"><tr><th>#</th><th>Finding</th><th>Severity</th><th>CVSS</th><th>MITRE ATT&CK</th></tr></table>
+  </div>
+
+  <!-- Detailed Findings -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚠️</span>Detailed Findings</div>
+    <p style="color:#9ca3af;font-style:italic">No findings recorded.</p>
+  </div>
+
+  <!-- Owned Assets -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔑</span>Compromised Assets</div>
+    <p style="color:#9ca3af;font-style:italic">No owned assets recorded.</p>
+  </div>
+
+  <!-- Attack Timeline -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📅</span>Attack Timeline</div>
+    <p style="font-size:0.82em;color:#6b7280;margin-bottom:12px">Attack timeline (1 total)</p><table class="timeline-table"><tr><th>Time</th><th>Command</th></tr><tr><td class="time-cell">2026-06-08 22:24:20</td><td class="cmd-cell">bloodhound-ce-python -u jgarcia -p &#x27;Password1&#x27; -d hackerblueprint.local -dc DC01.hackerblueprint.local -ns 192.168.189.10 -c All --zip</td></tr></table>
+  </div>
+
+</div>
+
+<div class="report-footer">
+  <div style="margin-bottom:6px">
+    Generated by <strong>AdStrike v5.0</strong> &mdash; creator: tmrswrr &mdash;
+    MITRE ATT&amp;CK® is a registered trademark of The MITRE Corporation.
+  </div>
+  <div style="color:#e74c3c;font-weight:600">
+    CONFIDENTIAL &mdash; For authorised use only. Do not distribute without written permission.
+  </div>
+</div>
+
+</body>
+</html>

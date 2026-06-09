@@ -13,12 +13,10 @@ def run():
     print(f"""
   [1]  NTLM Capture with Responder
   [2]  NTLM Relay (ntlmrelayx) — SMB/LDAP/LDAPS targets
-  [3]  ARP Poisoning with bettercap
   [4]  DHCPv6 Poisoning (mitm6 → ntlmrelayx)
   [5]  Username Enumeration (kerbrute)
   [6]  SMB / LDAP Null Session Check
   [7]  RID Cycling (anonymous user enum)
-  [8]  PCredz — extract creds from pcap/wire
   [0]  Back
 """)
     c = input(f"  {M}Choice:{RST} ").strip()

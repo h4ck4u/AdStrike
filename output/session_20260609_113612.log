@@ -1,0 +1,201 @@
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  25 menu entries  |  5 active phases  |  OSCP edition  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [24] Session -> [25] Tool Checker -> [4] Enum -> [23] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [ 4]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [ 5]  PowerView Enumeration             Full PowerView cmdlet reference
+    [ 6]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [ 7]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [ 8]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [ 9]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [10]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [11]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [12]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [13]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [14]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [15]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [16]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [17]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [18]  Password Attacks                  Spray · kerbrute · stuffing · relay
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [19]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [20]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [21]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [22]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [23]  Generate Report                   HTML · Markdown · JSON pentest report
+    [24]  Session Manager                   Save · load · switch · clear sessions
+    [25]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═══════════════════════════════════════════════════╗
+  ║                   USER HUNTING                    ║
+  ╠═══════════════════════════════════════════════════╣
+  ║    Find where high-value targets are logged in    ║
+  ╚═══════════════════════════════════════════════════╝
+
+  [auto] DC IP                 : 192.168.189.10
+  [auto] Domain                : hackerblueprint.local
+  [auto] Username              : jgarcia
+  [auto] Password              : ***
+
+  ── OPSEC warning ─────────────────────────────────────────────────────
+  [!] User hunting generates SMB/RPC traffic to every host — HIGH NOISE
+  [!] Use -Stealth or WMI/PSRemoting variants in sensitive environments
+  [!] NetCease on target DC will block NetSessionEnum — option [14] for details
+
+
+  ── WHERE ARE THE ADMINS? ─────────────────────────────────────────────────────
+  [1]  Find machines where YOU have local admin        (Find-LocalAdminAccess)
+  [2]  Find machines where YOU have local admin — WMI  (stealth, no RPC/SMB)
+  [3]  Find machines where YOU have local admin — PSR  (PSRemoting variant)
+
+  ── WHERE ARE DOMAIN ADMINS LOGGED IN? ───────────────────────────────────────
+  [4]  Find DA sessions — all machines                 (Invoke-UserHunter)
+  [5]  Find DA sessions — STEALTH (DC/FS/DFS only)     (Invoke-UserHunter -Stealth)
+  [6]  Find DA sessions + confirm admin access         (Invoke-UserHunter -CheckAccess)
+  [7]  Hunt specific group sessions                    (Invoke-UserHunter -GroupName)
+
+  ── WHO HAS LOCAL ADMIN ON EVERY MACHINE? ────────────────────────────────────
+  [8]  Enumerate local admins on ALL domain machines   (Invoke-EnumerateLocalAdmin)
+  [9]  NetExec loggedon-users sweep (Linux, fast)
+  [10] BloodHound session collection (LoggedOn method)
+
+  ── TARGETED HUNTING ─────────────────────────────────────────────────────────
+  [11] Find where a specific user has sessions
+  [12] Check admin access to a list of hosts (file input)
+  [13] Get currently logged-on users on one host
+
+  ── STEALTH & OPSEC ──────────────────────────────────────────────────────────
+  [14] NetCease / SAMRi10 awareness (what defenders block + how to detect)
+  [15] Stealth hunting one-liner reference
+  [16] Invoke-SessionHunter           (WMI-based — bypasses NetCease/SAMRi10)
+
+  [0]  Back
+
+  Choice: 
+  ── Find-LocalAdminAccess — PowerView (noisy) ─────────────────────────
+  [*] Queries DC for all computers, then tests local admin via SMB on each
+
+  # Basic — test all machines in domain
+  Find-LocalAdminAccess -Verbose
+
+  # Limit to specific OU
+  Find-LocalAdminAccess -SearchBase "OU=Servers,DC=hackerblueprint,DC=local"
+
+  # From a pre-built list of targets
+  Find-LocalAdminAccess -ComputerFile .\computers.txt -Verbose
+
+  # Find DA location + confirm YOU have local admin
+  Find-DomainUserLocation -CheckAccess | ?{$_.LocalAdmin -eq $True} | select UserName,SessionFromName,LocalAdmin
+
+  [FINDING] [Info    ] User Hunting — LocalAdmin Search
+  [Enter] to return
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  25 menu entries  |  5 active phases  |  OSCP edition  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  1 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [24] Session -> [25] Tool Checker -> [4] Enum -> [23] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [ 4]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [ 5]  PowerView Enumeration             Full PowerView cmdlet reference
+    [ 6]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [ 7]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [ 8]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [ 9]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [10]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [11]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [12]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [13]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [14]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [15]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [16]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [17]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [18]  Password Attacks                  Spray · kerbrute · stuffing · relay
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [19]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [20]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [21]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [22]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [23]  Generate Report                   HTML · Markdown · JSON pentest report
+    [24]  Session Manager                   Save · load · switch · clear sessions
+    [25]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 

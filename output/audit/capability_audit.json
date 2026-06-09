@@ -1,0 +1,123 @@
+{
+  "generated": "2026-06-08T21:00:17.657170",
+  "tools": {
+    "ready": 57,
+    "total": 65,
+    "required_ready": 56,
+    "required_total": 57,
+    "optional_tools": [
+      "AADInternals",
+      "SharpSCCM.exe",
+      "certsync",
+      "havoc",
+      "lazagne",
+      "rustscan",
+      "sccmhunter",
+      "sliver-server"
+    ],
+    "groups": {
+      "Impacket": [
+        "impacket-secretsdump",
+        "impacket-GetNPUsers",
+        "impacket-GetUserSPNs",
+        "impacket-ticketer",
+        "impacket-psexec",
+        "impacket-wmiexec",
+        "impacket-smbexec",
+        "impacket-atexec",
+        "impacket-dcomexec",
+        "impacket-dacledit",
+        "impacket-ntlmrelayx",
+        "impacket-lookupsid",
+        "impacket-addcomputer",
+        "impacket-getTGT",
+        "impacket-getST",
+        "impacket-rbcd",
+        "impacket-findDelegation",
+        "impacket-reg"
+      ],
+      "Core": [
+        "nxc",
+        "crackmapexec",
+        "evil-winrm",
+        "bloodhound-python",
+        "ldapsearch",
+        "certipy",
+        "enum4linux-ng",
+        "bloodyAD"
+      ],
+      "Cracking": [
+        "hashcat",
+        "john",
+        "hydra",
+        "cewl"
+      ],
+      "Network": [
+        "nmap",
+        "masscan",
+        "nbtscan",
+        "netdiscover",
+        "rustscan"
+      ],
+      "Relay": [
+        "responder",
+        "mitm6",
+        "ntlmrelayx.py"
+      ],
+      "Kerberos": [
+        "kerbrute",
+        "klist",
+        "kinit",
+        "kdestroy",
+        "faketime"
+      ],
+      "Coercion": [
+        "coercer",
+        "PetitPotam.py",
+        "printerbug.py"
+      ],
+      "Creds": [
+        "lsassy",
+        "dploot",
+        "pypykatz",
+        "lazagne"
+      ],
+      "ADCS": [
+        "certipy",
+        "certsync"
+      ],
+      "SCCM": [
+        "sccmhunter",
+        "SharpSCCM.exe"
+      ],
+      "Cloud": [
+        "roadrecon",
+        "roadtx",
+        "AADInternals"
+      ],
+      "C2": [
+        "sliver-server",
+        "havoc",
+        "msfconsole"
+      ],
+      "Misc": [
+        "dig",
+        "dnstool.py",
+        "rpcclient",
+        "smbclient",
+        "jq"
+      ]
+    }
+  },
+  "modules": {
+    "total": 56,
+    "ok": 56,
+    "missing_run": 0,
+    "errors": []
+  },
+  "session": {
+    "domain": "hackerblueprint.local",
+    "dc_ip": "192.168.189.10",
+    "auth_mode": "Password"
+  }
+}

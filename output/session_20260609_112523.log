@@ -1,0 +1,98 @@
+
+╭━━━┳━━━╮╱╱╭━━━┳━━━━┳━━━┳━━┳╮╭━┳━━━╮
+┃╭━╮┣╮╭╮┃╱╱┃╭━╮┃╭╮╭╮┃╭━╮┣┫┣┫┃┃╭┫╭━━╯
+┃┃╱┃┃┃┃┃┃╱╱┃╰━━╋╯┃┃╰┫╰━╯┃┃┃┃╰╯╯┃╰━━╮
+┃╰━╯┃┃┃┃┣━━╋━━╮┃╱┃┃╱┃╭╮╭╯┃┃┃╭╮┃┃╭━━╯
+┃╭━╮┣╯╰╯┣━━┫╰━╯┃╱┃┃╱┃┃┃╰┳┫┣┫┃┃╰┫╰━━╮
+╰╯╱╰┻━━━╯╱╱╰━━━╯╱╰╯╱╰╯╰━┻━━┻╯╰━┻━━━╯
+────────────────────────────────────────────────────────────────────────────────────
+  ACTIVE DIRECTORY STRIKE FRAMEWORK  |  v5.0 «AdStrike»  |  build 2026.04
+  25 menu entries  |  5 active phases  |  OSCP edition  |  reports  |  creator: tmrswrr
+  [!]  Authorised penetration testing and red-team engagements only
+────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  TARGET  jgarcia@hackerblueprint.local  ▶  192.168.189.10  │  AUTH   ✓ PASSWORD                │
+│  ENGAGE  hackerblueprint-lab                    │  STATS  0 cmd  |  0 findings  |  0u/0m owned │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick path: [24] Session -> [25] Tool Checker -> [4] Enum -> [23] Report
+
+    PHASE 0  RECONNAISSANCE  ───────────────────────────────────────────────
+    [ 1]  Recon & OSINT                     DNS · WHOIS · email harvest · crt.sh
+    [ 2]  Network Discovery                 nmap · masscan · nbtscan · IPv6
+
+    PHASE 1  INITIAL ACCESS  ───────────────────────────────────────────────
+    [ 3]  Initial Access (No Creds)         NTLM capture · relay · ARP · DHCPv6 · RID
+
+    PHASE 2  ENUMERATION  ──────────────────────────────────────────────────
+    [ 4]  AD Enumeration                    LDAP · SMB · GPO · DNS · Trust · SPN · LAPS
+    [ 5]  PowerView Enumeration             Full PowerView cmdlet reference
+    [ 6]  BloodHound Helper                 SOAPHound · RustHound · ADExplorer · Neo4j
+    [ 7]  File & Share Hunter               Snaffler · SYSVOL · GPP · spider_plus
+    [ 8]  NetExec / NXC Suite               nxc smb · ldap · mssql · winrm · rdp
+    [ 9]  User Hunting                      SessionHunter · UserHunter · NetCease bypass
+    [10]  ADIDNS Abuse                      Wildcard DNS · WPAD · record inject · DNSAdmins
+
+    PHASE 3  PRIVILEGE ESCALATION  ─────────────────────────────────────────
+    [11]  Local Privilege Escalation        PowerUp · KrbRelayUp · Potatoes · JEA
+    [12]  Kerberos Attacks                  Golden · Silver · Diamond · Sapphire · Roast
+    [13]  Rubeus Toolkit                    TGT · TGS · Roast · PTT · S4U · monitor
+    [14]  ACL / ACE Abuse                   GenericAll · WriteDACL · ForceChange
+
+    PHASE 4  LATERAL MOVEMENT  ─────────────────────────────────────────────
+    [15]  Lateral Movement                  PSExec · WMI · DCOM · Evil-WinRM · WinRS
+    [16]  Coercion Attacks                  PrinterBug · PetitPotam · Relay→ShadowCreds
+    [17]  MSSQL Abuse                       xp_cmdshell · PowerUpSQL · linked server RCE
+    [18]  Password Attacks                  Spray · kerbrute · stuffing · relay
+
+    PHASE 5  CREDENTIAL ACCESS  ────────────────────────────────────────────
+    [19]  Credential Dumping                LSASS · SAM · NTDS · lsassy · nanodump
+    [20]  DCSync / DCShadow                 Full domain hash dump · rogue DC
+    [21]  Shadow Copies Abuse               VSS · NTDS.dit · SAM · SYSTEM extract
+
+    PHASE 6  PERSISTENCE  ──────────────────────────────────────────────────
+
+    PHASE 7  CLOUD / HYBRID  ───────────────────────────────────────────────
+
+    PHASE 8  ADVANCED OPERATIONS  ──────────────────────────────────────────
+
+    UTILITIES  ─────────────────────────────────────────────────────────────
+    [22]  Kerberos Manager                  TGT · PTT · S4U · ccache · krb5.conf
+    [23]  Generate Report                   HTML · Markdown · JSON pentest report
+    [24]  Session Manager                   Save · load · switch · clear sessions
+    [25]  Tool Checker                      Verify all 45+ required offensive tools
+    [ 0]  Exit                              Save session & quit
+
+
+  ┌─[AdStrike]─[v5.0]
+  └──▶ 
+  ╔═══════════════════════════════════════╗
+  ║          NETEXEC / NXC SUITE          ║
+  ╠═══════════════════════════════════════╣
+  ║    Swiss army knife for AD testing    ║
+  ╚═══════════════════════════════════════╝
+
+  [auto] Target IP / subnet    : 192.168.189.10
+  [auto] Domain                : hackerblueprint.local
+  [auto] Username              : jgarcia
+  [auto] Password              : ***
+  [?] Subnet (Enter to use 192.168.189.10): 
+  ── SMB ──────────────────────────────────────────────────────────
+  [1]  SMB Enum (shares/users/groups/pass-pol)
+  [2]  SMB Code Execution (cmd/ps)
+  [3]  SMB Credential Dump (lsassy/nanodump/mimikatz)
+  [4]  SMB File Operations (spider/get/put)
+  ── LDAP ─────────────────────────────────────────────────────────
+  [6]  LDAP Enumeration (users/groups/DC/ADCS/Maq)
+  [7]  LDAP Kerberoast / AS-REP Roast
+  ── OTHER PROTOCOLS ───────────────────────────────────────────────
+  [8]  WinRM Execution
+  [9]  MSSQL Execution
+  [10] RDP Check
+  [11] SSH Check
+  ── NXC MODULES ──────────────────────────────────────────────────
+  [15] get_netconnections  (active network connections)
+  [0]  Back
+
+  Choice: 

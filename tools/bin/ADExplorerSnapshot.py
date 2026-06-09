@@ -1,2 +1,1 @@
-import adexpsnapshot
-adexpsnapshot.main()
+../ADExplorerSnapshot.py/ADExplorerSnapshot.py
