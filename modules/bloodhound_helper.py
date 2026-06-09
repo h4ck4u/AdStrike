@@ -386,6 +386,10 @@ def run():
   [2] All edges from current user
   [3] Mark node as owned
   [4] Custom Cypher query
+  [5] Machine Account Quota (LDAP relay viability)
+  [6] All owned nodes
+  [7] Kerberoastable users
+  [8] AS-REP roastable users
 """)
             mc = input(f"  {M}Choice:{RST} ").strip()
             neo4j_url = _ENV.get("NEO4J_URL", "http://127.0.0.1:7474")
@@ -411,5 +415,17 @@ def run():
                 query = prompt("Cypher query")
                 if query:
                     run_cmd(f'{max_base} query -q "{query}"')
+            elif mc == "5":
+                _q5 = "MATCH (d:Domain) RETURN d.name, d.machineaccountquota"
+                run_cmd(f"{max_base} query -q {shell_quote(_q5)}")
+            elif mc == "6":
+                _q6 = "MATCH (u:User {owned:true}) RETURN u.name"
+                run_cmd(f"{max_base} query -q {shell_quote(_q6)}")
+            elif mc == "7":
+                _q7 = "MATCH (u:User {hasspn:true}) RETURN u.name, u.serviceprincipalnames"
+                run_cmd(f"{max_base} query -q {shell_quote(_q7)}")
+            elif mc == "8":
+                _q8 = "MATCH (u:User {dontreqpreauth:true}) RETURN u.name"
+                run_cmd(f"{max_base} query -q {shell_quote(_q8)}")
     sys.stdout.write("\n"); sys.stdout.flush()
     pause()

