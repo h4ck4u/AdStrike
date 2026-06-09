@@ -64,9 +64,8 @@ def run():
     if c in ("2","A"):
         run_cmd(f"{cme} --shares")
         run_cmd(f"{cme} --users")
-        run_cmd(f"{cme} --groups")
-        run_cmd(f"{cme} --smb-sessions")
-        run_cmd(f"{cme} --loggedon-users")
+        cme_ldap = f"nxc ldap {shell_quote(dc)} {nxc_a}"
+        run_cmd(f"{cme_ldap} --groups")
 
     if c in ("3","A"):
         out = run_cmd(f"{ldap_b} '(objectClass=groupPolicyContainer)' displayName gPCFileSysPath", capture=True)
