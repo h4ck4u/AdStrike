@@ -615,7 +615,7 @@ def _auto_discover(ip: str) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 def session_setup(announce_loaded: bool = True):
     # Already fully configured
-    if SESSION.get("dc_ip") and SESSION.get("domain") and SESSION.get("username"):
+    if SESSION.get("dc_ip") and SESSION.get("domain"):
         if announce_loaded:
             info(
                 f"Session loaded  "
@@ -865,6 +865,7 @@ def session_manager():
             ("password",      "Password",      ""),
             ("nt_hash",       "NT Hash",       ""),
             ("attacker_ip",   "Attacker IP",   SESSION.get("attacker_ip", "")),
+            ("engagement",    "Engagement Name", SESSION.get("engagement", "")),
         ]
         print()
         for key, label, current in fields:

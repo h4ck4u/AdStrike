@@ -104,7 +104,8 @@ def run():
         else:
             auth = f"{prefix}bloodhound-ce-python -u {shell_quote(user)} -p {shell_quote(password)}"
 
-        cmd = f"{auth} -d {shell_quote(dom)} -ns {shell_quote(dc)} -gc DC01.{shell_quote(dom)}"
+        gc = f"DC01.{dom}" if dc_fqdn else dc
+        cmd = f"{auth} -d {shell_quote(dom)} -ns {shell_quote(dc)} -gc {shell_quote(gc)}"
         if dc_fqdn:
             cmd += f" -dc {shell_quote(dc_fqdn)}"
         return cmd
@@ -145,9 +146,26 @@ def run():
         prev_dir = os.getcwd()
         os.chdir(bh_out_dir)
         try:
-            cmd = f"{_bloodhound_base(prefix)} -c {shell_quote(collection)} --zip"
             import subprocess as _sp
-            _sp.run(cmd, shell=True, stdin=_sp.DEVNULL, timeout=600)
+            cmd = f"{_bloodhound_base(prefix)} -c {shell_quote(collection)} --zip"
+            result = _sp.run(cmd, shell=True, stdin=_sp.DEVNULL, capture_output=True, text=True, timeout=600)
+            if "signing is enabled" in result.stderr.lower() or "ldapauthentication" in result.stderr.lower():
+                info("LDAP signing detected — trying Kerberos auth")
+                from config.settings import krb5_request_tgt, save_session
+                _ccache = f"/tmp/{user}_{dom}.ccache"
+                _tgt_ok = krb5_request_tgt(username=user, password=pw, domain=dom, dc_ip=dc, ccache=_ccache)
+                if _tgt_ok:
+                    import os as _os
+                    _os.environ["KRB5CCNAME"] = _ccache
+                    _S["krb5_ccache"] = _ccache
+                    save_session()
+                    cmd = f"KRB5CCNAME={shell_quote(_ccache)} bloodhound-ce-python -k -no-pass -u {shell_quote(user)} -d {shell_quote(dom)} -ns {shell_quote(dc)} -gc DC01.{dom} -c {shell_quote(collection)} --zip --disable-pooling"
+                    _sp.run(cmd, shell=True, stdin=_sp.DEVNULL, timeout=600)
+                else:
+                    warn("Kerberos TGT failed — try [22] Kerberos Manager to request TGT manually")
+            else:
+                sys.stdout.write(result.stdout)
+                sys.stdout.flush()
         finally:
             os.chdir(prev_dir)
         if stop_fn:
@@ -175,9 +193,18 @@ def run():
 
     elif c == "4":
         node = prompt("Node name (e.g. JDOE@CORP.LOCAL)")
-        SESSION["owned_users"].append(node)
-        info(f"In Neo4j browser run:")
-        print(f"  {Y}MATCH (n {{name:'{node}'}}) SET n.owned=true RETURN n{RST}")
+        if node:
+            SESSION["owned_users"].append(node)
+            max_py = "/opt/Max/max.py"
+            neo4j_url = _ENV.get("NEO4J_URL", "http://127.0.0.1:7474")
+            neo4j_user = _ENV.get("NEO4J_USER", "neo4j")
+            neo4j_pass = _ENV.get("NEO4J_PASS", "bloodhoundcommunityedition")
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                f.write(node.upper() + "\n")
+                tmp = f.name
+            run_cmd(f"python3 {max_py} -u {neo4j_user} -p {neo4j_pass} --url {neo4j_url} mark-owned -f {tmp}")
+            success(f"Marked {node} as owned in BloodHound CE")
 
     elif c == "5":
         if SESSION["owned_users"]:
